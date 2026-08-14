@@ -1,0 +1,18 @@
+.venv/
+__pycache__/
+*.pyc
+*.db-wal
+*.db-shm
+
+# design-tool scratch: CTAN font cache, build logs, tool state.
+# The build inputs that matter live in assets/; regenerate the subsets with
+# tools/build_fonts.py, which pulls the pristine faces from CTAN.
+.impeccable/
+.hallmark/
+
+# superseded site generators, kept on disk, out of the repo so there is one
+# visual authority
+site.html
+cairn/site.py
+cairn/journal.py
+tokens.css
