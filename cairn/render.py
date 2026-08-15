@@ -83,7 +83,7 @@ def compose(header: str, sections: Sequence[Section], budget_tokens: int, footer
         head = s.title
         shown, total = len(kept), s.total or len(s.lines)
         if shown < total:
-            head += f"  ({shown}/{total} affichés — raffiner avec search_ledger / list_fronts)"
+            head += f"  ({shown}/{total} shown — narrow with search_ledger / list_fronts)"
         elif total and s.show_count:
             head += f"  ({total})"
         out.append("")
@@ -100,17 +100,17 @@ def compose(header: str, sections: Sequence[Section], budget_tokens: int, footer
 # --------------------------------------------------------------------- pieces
 
 _VERDICT_TAG = {
-    "close": "CLOS",
-    "refute": "RÉFUTÉ",
-    "advance": "AVANCE",
-    "dead-end": "IMPASSE",
+    "close": "CLOSED",
+    "refute": "REFUTED",
+    "advance": "ADVANCE",
+    "dead-end": "DEAD-END",
     "ops-note": "OPS",
 }
 _STATUT_TAG = {
-    "certified": "certifié",
-    "measured": "mesuré",
-    "conjectured": "conjecturé",
-    "refuted": "réfuté",
+    "certified": "certified",
+    "measured": "measured",
+    "conjectured": "conjectured",
+    "refuted": "refuted",
 }
 _STARS = {1: "***", 2: "**", 3: "*"}
 
@@ -128,11 +128,11 @@ def front_line(f: Any, *, width: int = 150, with_key: bool = True) -> str:
     bits.append(title)
     tail = []
     if f["cost"]:
-        tail.append(f"coût {f['cost']}")
+        tail.append(f"cost {f['cost']}")
     if f["status"] == "claimed" and f["claimed_by"]:
-        tail.append(f"PRIS par {f['claimed_by']} jusqu'à {(f['lease_expires'] or '')[:16]}")
+        tail.append(f"HELD by {f['claimed_by']} until {(f['lease_expires'] or '')[:16]}")
     if f["status"] == "closed":
-        tail.append("CLOS")
+        tail.append("CLOSED")
     line = "  • " + " ".join(bits)
     if tail:
         line += "  — " + " · ".join(tail)
@@ -163,7 +163,7 @@ def strata_line(rows: Iterable[Any]) -> str:
     for r in rows:
         mark = {"closed": "+", "partial": "~", "open": "-"}.get(r["status"], "-")
         bits.append(f"{r['label']}{mark}")
-    return "  " + " ".join(bits) + "     (+ clos · ~ partiel · - ouvert)"
+    return "  " + " ".join(bits) + "     (+ closed · ~ partial · - open)"
 
 
 def briefing(store, slug: str, budget_tokens: int = 1800) -> str:
@@ -177,10 +177,10 @@ def briefing(store, slug: str, budget_tokens: int = 1800) -> str:
         f"CAIRN — BRIEFING {p['slug']}   (budget ~{budget_tokens} tok)\n"
         f"{p['title']}\n"
         f"{clip(p['statement'], 700)}\n"
-        + (f"\nÉTAT EN UNE PHRASE\n  {clip(p['one_liner'], 500)}\n" if p["one_liner"] else "")
-        + (f"\nESTIMATION HONNÊTE\n  {clip(p['honest_estimate'], 420)}\n" if p["honest_estimate"] else "")
-        + f"\nCompteurs : {c['theorems']} théorèmes · {c['fronts_open']} fronts ouverts "
-        f"({c['fronts_closed']} clos) · {c['entries']} entrées de journal · {c['pitfalls']} pièges"
+        + (f"\nSTATE IN ONE SENTENCE\n  {clip(p['one_liner'], 500)}\n" if p["one_liner"] else "")
+        + (f"\nHONEST ESTIMATE\n  {clip(p['honest_estimate'], 420)}\n" if p["honest_estimate"] else "")
+        + f"\nCounters: {c['theorems']} results · {c['fronts_open']} fronts open "
+        f"({c['fronts_closed']}  closed) · {c['entries']} entries · {c['pitfalls']} traps"
     )
 
     secs: list[Section] = []
@@ -191,7 +191,7 @@ def briefing(store, slug: str, budget_tokens: int = 1800) -> str:
     ))
     if strata:
         n_closed = sum(1 for r in strata if r["status"] == "closed")
-        s = Section(f"VÉRIFIÉ MACHINE — {n_closed}/{len(strata)} strates closes",
+        s = Section(f"MACHINE-VERIFIED — {n_closed}/{len(strata)} strata closed",
                     weight=0.7, keep_min=1, show_count=False)
         s.add(strata_line(strata))
         for r in strata:
@@ -203,7 +203,7 @@ def briefing(store, slug: str, budget_tokens: int = 1800) -> str:
         "SELECT * FROM theorems WHERE problem_id=? ORDER BY (status!='proved'), key", (pid,)
     ))
     if th:
-        s = Section("ACQUIS — ne pas re-prouver", weight=1.6, keep_min=2)
+        s = Section("ESTABLISHED — do not re-prove", weight=1.6, keep_min=2)
         for t in th:
             s.add(theorem_line(t))
         s.set_total(len(th))
@@ -212,10 +212,10 @@ def briefing(store, slug: str, budget_tokens: int = 1800) -> str:
     dead = store.entries(pid, limit=40, verdicts=("close", "refute", "dead-end"))
     if dead:
         s = Section(
-            "ZONES MORTES — ne pas refaire",
+            "DEAD ZONES — do not redo",
             weight=2.2,
             keep_min=3,
-            note="(le champ après « — » est le POURQUOI : c'est ce qui te fait gagner du temps)",
+            note="(the field after the dash is the WHY: that is what saves you time)",
         )
         for e in dead:
             s.add(entry_line(e))
@@ -226,7 +226,7 @@ def briefing(store, slug: str, budget_tokens: int = 1800) -> str:
         "SELECT * FROM pitfalls WHERE problem_id=? ORDER BY COALESCE(occurrences,0) DESC, id", (pid,)
     ))
     if pit:
-        s = Section("PIÈGES MÉTHODO — payés par d'autres", weight=1.0, keep_min=2)
+        s = Section("TRAPS — already paid for by somebody", weight=1.0, keep_min=2)
         for r in pit:
             occ = f" ({r['occurrences']}×)" if r["occurrences"] else ""
             s.add(clip(f"  ! {r['title']}{occ} -> {r['lesson']}", 190))
@@ -235,21 +235,21 @@ def briefing(store, slug: str, budget_tokens: int = 1800) -> str:
 
     fronts = store.list_fronts(pid, "open")
     if fronts:
-        s = Section("FRONTS OUVERTS — triés par (chance de trancher / coût)", weight=2.4, keep_min=3)
+        s = Section("OPEN FRONTS — ranked by chance of settling over cost", weight=2.4, keep_min=3)
         for f in fronts:
             s.add(front_line(f))
         s.set_total(len(fronts))
         secs.append(s)
 
     footer = (
-        "PROTOCOLE\n"
-        "  1. search_ledger(problem, \"<ton idée>\") AVANT de commencer — la moitié des idées\n"
-        "     neuves sont déjà dans les zones mortes, avec la raison.\n"
-        "  2. claim_front(problem, front) pour éviter le doublon (bail expirable).\n"
-        "  3. report_result(...) en fin de session, même — surtout — si ça a échoué :\n"
-        "     verdict + statut + le POURQUOI. Une impasse documentée vaut plus qu'un\n"
-        "     résultat vague.\n"
-        "  4. put_artifact(...) pour le code et les logs ; ils ne passent jamais par le\n"
-        "     contexte, seulement par des poignées."
+        "PROTOCOL\n"
+        "  1. search_ledger(problem, \"<your idea>\") BEFORE starting. Half the ideas that\n"
+        "     feel new are already in the dead zones, with the reason.\n"
+        "  2. claim_front(problem, front) so two agents do not burn the same compute.\n"
+        "  3. report_result(...) at boundaries, not at the end, and especially when it\n"
+        "     failed: verdict + statut + the WHY. A documented dead end is worth more\n"
+        "     than a vague result.\n"
+        "  4. put_artifact(...) for code and logs; they never cross your context, only\n"
+        "     handles do."
     )
     return compose(header, secs, budget_tokens, footer)

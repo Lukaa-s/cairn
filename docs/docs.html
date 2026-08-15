@@ -50,10 +50,8 @@ cd cairn &amp;&amp; python3 -m venv .venv
       <pre class="code" id="cfg3">{
   &quot;mcpServers&quot;: {
     &quot;cairn&quot;: {
-      &quot;type&quot;: &quot;stdio&quot;,
-      &quot;command&quot;: &quot;/path/to/cairn/.venv/bin/python&quot;,
-      &quot;args&quot;: [&quot;-m&quot;, &quot;cairn.server&quot;],
-      &quot;env&quot;: { &quot;CAIRN_DB&quot;: &quot;/path/to/cairn/cairn.db&quot; }
+      &quot;command&quot;: &quot;uvx&quot;,
+      &quot;args&quot;: [&quot;--from&quot;, &quot;git+https://github.com/Lukaa-s/cairn&quot;, &quot;cairn-mcp&quot;]
     }
   }
 }</pre>

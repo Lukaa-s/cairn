@@ -285,6 +285,22 @@ h3{font-family:var(--display); font-weight:700; font-size:1.06rem; margin:0 0 va
 @media (min-width:52rem){ .newp{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr)} }
 .newp h3{margin:0 0 var(--s2)}
 
+.cats{display:grid; grid-template-columns:minmax(0,1fr); gap:1px; background:var(--rule);
+      border:1px solid var(--rule); border-radius:3px; overflow:hidden}
+@media (min-width:46rem){ .cats{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media (min-width:70rem){ .cats{grid-template-columns:repeat(3,minmax(0,1fr))} }
+.cat{
+  background:var(--bg); padding:var(--s4); text-decoration:none;
+  display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:var(--s3);
+  align-items:baseline; transition:background .15s var(--ease);
+}
+.cat:hover{background:var(--bg-2)}
+.cat .k{font-family:var(--mono); color:var(--accent); font-size:.9rem}
+.cat .d{font-family:var(--ui); font-weight:300; font-size:.78rem; color:var(--dim);
+        line-height:1.45; overflow-wrap:anywhere}
+.cat .go{color:var(--dim); font-family:var(--ui)}
+.cat:hover .go{color:var(--accent)}
+
 footer{border-top:1px solid var(--rule); padding:var(--s7) 0 var(--s8);
        font-family:var(--ui); font-weight:300; font-size:.86rem; color:var(--dim)}
 footer .wrap{display:flex; gap:var(--s5); flex-wrap:wrap; justify-content:space-between}

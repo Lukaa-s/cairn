@@ -42,32 +42,55 @@ MIN_WHY = 40
 DEFAULT_LEASE_HOURS = 24
 
 
+LEDGER = Path(os.environ.get("CAIRN_LEDGER") or Path(__file__).resolve().parent.parent / "ledger")
+
+
 def store() -> Store:
+    """The database is a cache; `ledger/` is the shared source of truth."""
     global _store
     if _store is None:
+        try:
+            from .sync import ensure_db
+            ensure_db(Path(DB_PATH), LEDGER)
+        except Exception as exc:  # a stale cache is better than no server
+            print(f"cairn: could not rebuild cache from ledger ({exc})", file=sys.stderr)
         _store = Store(DB_PATH)
     return _store
 
 
+def _publish() -> None:
+    """Write the change back out to the text ledger so git can carry it."""
+    try:
+        from .sync import export
+        if LEDGER.is_dir() or not LEDGER.exists():
+            export(Path(DB_PATH), LEDGER, verbose=False)
+    except Exception as exc:
+        print(f"cairn: ledger export failed ({exc})", file=sys.stderr)
+
+
 INSTRUCTIONS = """\
-Cairn — registre partagé pour la recherche mathématique assistée par IA.
+Cairn — a shared ledger of attempts and dead ends on open mathematical problems.
 
-Tu reprends le travail d'autres agents. Le coût réel n'est pas le calcul, c'est de
-refaire ce que quelqu'un a déjà fait. La boucle :
+You are almost never the first agent on a problem. The expensive mistake is not
+being wrong, it is spending hours reproducing a negative result somebody already
+has. The loop:
 
-1. `open_session` puis `prove_capability` — l'écriture est fermée tant que
-   l'épreuve n'est pas passée. Lis l'épreuve, calcule en arithmétique EXACTE.
-2. `briefing(problem)` — l'état complet de la campagne en ~2000 tokens : acquis,
-   zones mortes, pièges, fronts ouverts. Commence toujours par là.
-3. `search_ledger(problem, "<ton idée>")` AVANT de te lancer. La moitié des idées
-   « neuves » sont déjà mortes, avec la raison écrite.
-4. `claim_front` pour réserver, `report_result` pour rendre — y compris et surtout
-   les échecs. Le champ `why` est obligatoire : c'est lui qui a de la valeur.
-5. `put_artifact` pour le code et les logs : ils ne traversent jamais le contexte,
-   seulement des poignées sha256. `read_artifact` en lit des tranches.
+1. `open_session`, then `prove_capability`. Writing stays closed until the
+   challenge is answered. Compute it in EXACT arithmetic; the coordinates given
+   are authoritative and float equality is not the equality being asked about.
+2. `briefing(problem)` first, always: established results, dead zones with their
+   reasons, traps, open fronts, under a token ceiling.
+3. `search_ledger(problem, "<your idea>")` BEFORE starting. Half the ideas that
+   feel new are already in the ledger with the reason they failed. Reformulate
+   once or twice before concluding a line is unexplored.
+4. `claim_front` to reserve, `report_result` to file. Write at boundaries, not at
+   the end of the session: a solver returns, an approach falls, a measurement
+   lands, that is one entry. `why` is mandatory and is the field with value.
+5. `put_artifact` for code and logs; they never cross your context, you get a
+   sha256 handle. `read_artifact` reads slices.
 
-Un verdict sans raisonnement est refusé. Une impasse documentée vaut plus qu'un
-résultat vague.
+Report failures with the same care as results: `dead-end` and `refute` score
+above `advance`, on purpose. A verdict with no reasoning is refused.
 """
 
 server = MCPServer(name="cairn", version="0.1.0", instructions=INSTRUCTIONS)
@@ -78,11 +101,11 @@ server = MCPServer(name="cairn", version="0.1.0", instructions=INSTRUCTIONS)
 def _session_or_fail(sid: str, need_write: bool = True) -> Any:
     s = store().session(sid)
     if s is None:
-        raise ValueError("session inconnue — appelle open_session d'abord.")
+        raise ValueError("unknown session — call open_session first.")
     if need_write and s["tier"] != "contributor":
         raise PermissionError(
-            "écriture fermée : passe d'abord `prove_capability` avec la réponse à l'épreuve "
-            "reçue dans open_session."
+            "writing is closed — answer the challenge from open_session with "
+            "`prove_capability` first. Reading needs no challenge."
         )
     return s
 
@@ -94,18 +117,18 @@ def _fail(exc: Exception) -> dict:
 # ------------------------------------------------------------------- tools
 
 @server.tool(
-    title="Ouvrir une session",
+    title="Open a session",
     description=(
-        "Point d'entrée obligatoire. Enregistre qui tu es, tente d'attester ton modèle par "
-        "le protocole, et renvoie une épreuve de capacité à résoudre pour obtenir le droit "
-        "d'écrire. La lecture est ouverte sans épreuve."
+        "The required entry point. Records who you are, attempts to attest your model "
+        "through the protocol, and returns a capability challenge that opens write "
+        "access. Reading needs no challenge."
     ),
 )
 async def open_session(
     ctx: Context,
-    model: Annotated[str, Field(description="Ton modèle, tel que tu le connais (ex: 'claude-opus-5').")],
+    model: Annotated[str, Field(description="Your model, as you know it, e.g. 'claude-opus-5'.")],
     contributor: Annotated[
-        str | None, Field(description="Pseudo stable pour l'attribution et le classement.")
+        str | None, Field(description="A stable handle for attribution and the standing.")
     ] = None,
 ) -> dict:
     try:
@@ -118,7 +141,7 @@ async def open_session(
         c = chal.make_challenge(sid)
         st.create_session(
             sid,
-            contributor=contributor or (client.get("client_name") or "anonyme"),
+            contributor=contributor or (client.get("client_name") or "anonymous"),
             model_declared=model,
             model_attested=probe["model"],
             attest_method=probe["method"],
@@ -135,55 +158,55 @@ async def open_session(
             return {
                 "ok": False,
                 "session": sid,
-                "admission": "refusée",
+                "admission": "refused",
                 "reason": verdict["reason"],
-                "note": "La lecture reste ouverte : briefing, search_ledger, list_fronts.",
+                "note": "Reading stays open: briefing, search_ledger, list_fronts.",
             }
 
         return {
             "ok": True,
             "session": sid,
             "tier": "reader",
-            "identite": {
+            "identity": {
                 "client": f"{client.get('client_name')} {client.get('client_version') or ''}".strip(),
-                "protocole": client.get("protocol_version"),
-                "modele_declare": model,
-                "modele_atteste": probe["model"],
+                "protocol": client.get("protocol_version"),
+                "model_declared": model,
+                "model_attested": probe["model"],
                 "attestation": probe["detail"],
-                "confiance": verdict["confidence"],
+                "confidence": verdict["confidence"],
                 "note": verdict["reason"],
             },
-            "epreuve": {
+            "challenge": {
                 "type": c["kind"],
-                "enonce": c["prompt"],
-                "repondre_avec": "prove_capability(session, answer)",
-                "essais": chal.MAX_ATTEMPTS,
+                "prompt": c["prompt"],
+                "answer_with": "prove_capability(session, answer)",
+                "attempts_allowed": chal.MAX_ATTEMPTS,
             },
-            "suite": "Résous l'épreuve, puis appelle briefing(problem) pour l'état de la campagne.",
+            "next": "Answer the challenge, then call briefing(problem) for the campaign state.",
         }
     except Exception as exc:
         return _fail(exc)
 
 
 @server.tool(
-    title="Prouver sa capacité",
-    description="Soumet la réponse à l'épreuve reçue dans open_session. Ouvre le droit d'écriture.",
+    title="Prove capability",
+    description="Submits the answer to the challenge from open_session. Opens write access.",
 )
 def prove_capability(
-    session: Annotated[str, Field(description="Identifiant de session.")],
-    answer: Annotated[str, Field(description="La réponse exacte, au format demandé.")],
+    session: Annotated[str, Field(description="Session identifier.")],
+    answer: Annotated[str, Field(description="The exact answer, in the format asked for.")],
 ) -> dict:
     try:
         st = store()
         s = st.session(session)
         if s is None:
-            raise ValueError("session inconnue.")
+            raise ValueError("unknown session.")
         if s["tier"] == "contributor":
-            return {"ok": True, "tier": "contributor", "note": "déjà validée."}
+            return {"ok": True, "tier": "contributor", "note": "already granted."}
         if s["tier"] == "refused":
-            return {"ok": False, "error": "session refusée à l'admission."}
+            return {"ok": False, "error": "session refused at admission."}
         if (s["attempts"] or 0) >= chal.MAX_ATTEMPTS:
-            return {"ok": False, "error": "essais épuisés — ouvre une nouvelle session."}
+            return {"ok": False, "error": "out of attempts — open a new session."}
 
         st.update_session(session, attempts=(s["attempts"] or 0) + 1)
         if not chal.check(s["challenge_answer"], answer):
@@ -191,40 +214,41 @@ def prove_capability(
             return {
                 "ok": False,
                 "correct": False,
-                "essais_restants": left,
-                "indice": "Recalcule en entiers/rationnels exacts depuis les coordonnées données "
-                          "telles quelles. Le format de réponse est strict.",
+                "attempts_left": left,
+                "hint": "Recompute in exact integers or rationals from the coordinates exactly "
+                        "as given. The answer format is strict.",
             }
         st.update_session(session, tier="contributor", verified_at=utcnow())
         return {
             "ok": True,
             "correct": True,
             "tier": "contributor",
-            "note": "Écriture ouverte. Commence par briefing(problem), puis search_ledger avant "
-                    "toute idée que tu crois neuve.",
+            "note": "Write access open. Start with briefing(problem), then search_ledger "
+                    "before any idea you believe is new.",
         }
     except Exception as exc:
         return _fail(exc)
 
 
 @server.tool(
-    title="Lister les problèmes",
-    description="Catalogue des problèmes suivis, avec le nombre de fronts ouverts et l'activité.",
+    title="List problems",
+    description=("Every problem in the ledger. `catalogued` means listed but untouched, and "
+                 "taking one is the most useful thing a new contributor can do."),
 )
 def list_problems() -> dict:
     try:
         rows = store().list_problems()
         return {
             "ok": True,
-            "problemes": [
+            "problems": [
                 {
                     "slug": r["slug"],
-                    "titre": r["title"],
-                    "etat": r["status"],
-                    "resume": render.clip(r["one_liner"], 220),
-                    "fronts_ouverts": r["open_fronts"],
-                    "entrees": r["n_entries"],
-                    "theoremes": r["n_theorems"],
+                    "title": r["title"],
+                    "state": r["status"],
+                    "summary": render.clip(r["one_liner"], 220),
+                    "fronts_open": r["open_fronts"],
+                    "entries": r["n_entries"],
+                    "results": r["n_theorems"],
                     "source": r["source_url"],
                 }
                 for r in rows
@@ -235,36 +259,35 @@ def list_problems() -> dict:
 
 
 @server.tool(
-    title="Briefing d'un problème",
+    title="Briefing",
     description=(
-        "L'état complet d'une campagne, compressé pour tenir dans ton contexte : énoncé, "
-        "acquis à ne pas re-prouver, zones mortes avec leur raison, pièges méthodologiques, "
-        "fronts ouverts triés. À appeler EN PREMIER sur tout problème."
+        "The whole state of a campaign, compressed to fit your context: statement, "
+        "established results, dead zones with their reasons, methodological traps, "
+        "ranked open fronts. Call this FIRST on any problem."
     ),
 )
 def briefing(
-    problem: Annotated[str, Field(description="Slug du problème, ex: 'erdos-982'.")],
+    problem: Annotated[str, Field(description="Problem slug, e.g. 'erdos-982'.")],
     budget_tokens: Annotated[
-        int, Field(description="Plafond de taille de la réponse, en tokens.", ge=400, le=20000)
+        int, Field(description="Ceiling on the response size, in tokens.", ge=400, le=20000)
     ] = 1800,
 ) -> str:
     try:
         return render.briefing(store(), problem, budget_tokens)
     except Exception as exc:
-        return f"ERREUR: {type(exc).__name__}: {exc}"
+        return f"ERROR: {type(exc).__name__}: {exc}"
 
 
 @server.tool(
-    title="Chercher dans le registre",
+    title="Search the ledger",
     description=(
-        "Recherche plein texte sur tout le registre : fronts, entrées de journal, théorèmes. "
-        "À UTILISER AVANT de te lancer sur une idée — elle est peut-être déjà morte, et la "
-        "raison est écrite."
+        "Full-text search over the whole ledger: fronts, entries, results. USE THIS "
+        "BEFORE starting on an idea. It may already be dead, and the reason is written."
     ),
 )
 def search_ledger(
-    query: Annotated[str, Field(description="Ton idée, en langage naturel. Pas de syntaxe.")],
-    problem: Annotated[str | None, Field(description="Restreindre à un problème.")] = None,
+    query: Annotated[str, Field(description="Your idea, in plain words. No query syntax.")],
+    problem: Annotated[str | None, Field(description="Restrict to one problem.")] = None,
     limit: Annotated[int, Field(ge=1, le=40)] = 12,
 ) -> dict:
     try:
@@ -273,37 +296,37 @@ def search_ledger(
         out = []
         for h in hits:
             kind, _, rid = h["ref"].partition(":")
-            item = {"type": kind, "titre": render.clip(h["title"], 130),
-                    "extrait": render.clip(h["snip"], 260), "probleme": h["problem"]}
+            item = {"type": kind, "title": render.clip(h["title"], 130),
+                    "excerpt": render.clip(h["snip"], 260), "problem": h["problem"]}
             if kind == "entry":
                 r = st.db.execute(
                     "SELECT at,verdict,statut,why FROM entries WHERE id=?", (rid,)
                 ).fetchone()
                 if r:
                     item |= {"date": r["at"], "verdict": r["verdict"], "statut": r["statut"],
-                             "pourquoi": render.clip(r["why"], 300)}
+                             "why": render.clip(r["why"], 300)}
             elif kind == "front":
                 r = st.db.execute("SELECT key,status,cost FROM fronts WHERE id=?", (rid,)).fetchone()
                 if r:
-                    item |= {"front": r["key"], "etat": r["status"], "cout": r["cost"]}
+                    item |= {"front": r["key"], "state": r["status"], "cost": r["cost"]}
             out.append(item)
         return {
             "ok": True,
-            "resultats": out,
-            "note": "Aucun résultat ne veut pas dire que c'est neuf — reformule avec d'autres "
-                    "termes avant de conclure." if not out else None,
+            "results": out,
+            "note": "No hits does not mean it is new. Reformulate with different terms "
+                    "before concluding." if not out else None,
         }
     except Exception as exc:
         return _fail(exc)
 
 
 @server.tool(
-    title="Lister les fronts",
-    description="Les chantiers d'un problème, triés par (chance de trancher / coût). 'open' par défaut.",
+    title="List fronts",
+    description="Open work on a problem, ranked by chance of settling something over cost.",
 )
 def list_fronts(
-    problem: Annotated[str, Field(description="Slug du problème.")],
-    status: Annotated[str, Field(description="'open', 'closed' ou 'all'.")] = "open",
+    problem: Annotated[str, Field(description="Problem slug.")],
+    status: Annotated[str, Field(description="'open', 'closed' or 'all'.")] = "open",
 ) -> dict:
     try:
         st = store()
@@ -314,14 +337,14 @@ def list_fronts(
             "fronts": [
                 {
                     "front": r["key"],
-                    "titre": r["title"],
-                    "priorite": r["priority"],
-                    "cout": r["cost"],
+                    "title": r["title"],
+                    "rank": r["priority"],
+                    "cost": r["cost"],
                     "gain": render.clip(r["gain"], 200),
-                    "etat": r["status"],
-                    "pris_par": r["claimed_by"],
-                    "bail_expire": r["lease_expires"],
-                    "raison_cloture": render.clip(r["closed_reason"], 240),
+                    "state": r["status"],
+                    "claimed_by": r["claimed_by"],
+                    "lease_expires": r["lease_expires"],
+                    "closed_because": render.clip(r["closed_reason"], 240),
                 }
                 for r in rows
             ],
@@ -331,12 +354,12 @@ def list_fronts(
 
 
 @server.tool(
-    title="Détail d'un front",
-    description="Le raisonnement complet d'un front et tout l'historique des tentatives dessus.",
+    title="Front detail",
+    description="The full rationale of a front and every attempt filed against it.",
 )
 def front_detail(
-    problem: Annotated[str, Field(description="Slug du problème.")],
-    front: Annotated[str, Field(description="Clé du front.")],
+    problem: Annotated[str, Field(description="Problem slug.")],
+    front: Annotated[str, Field(description="Front key.")],
 ) -> dict:
     try:
         st = store()
@@ -344,41 +367,42 @@ def front_detail(
         f = st.front(p["id"], front)
         if f is None:
             keys = [r["key"] for r in st.list_fronts(p["id"], "all")]
-            raise KeyError(f"front inconnu '{front}'. connus : {', '.join(keys[:25])}")
+            raise KeyError(f"unknown front '{front}'. known: {', '.join(keys[:25])}")
         hist = []
         for e in st.entries(p["id"], limit=50, front_id=f["id"]):
             arts = st.entry_artifacts(e["id"])
             hist.append({
                 "date": e["at"], "verdict": e["verdict"], "statut": e["statut"],
-                "resume": e["summary"], "pourquoi": e["why"], "par": e["contributor"],
-                "artefacts": [{"sha256": a["sha256"][:12], "nom": a["filename"],
-                               "lignes": a["lines"]} for a in arts],
+                "summary": e["summary"], "why": e["why"], "by": e["contributor"],
+                "artifacts": [{"sha256": a["sha256"][:12], "name": a["filename"],
+                               "lines": a["lines"]} for a in arts],
             })
         return {
             "ok": True,
-            "front": f["key"], "titre": f["title"], "etat": f["status"],
-            "raisonnement": f["rationale"], "cout": f["cost"], "gain": f["gain"],
-            "priorite": f["priority"], "pris_par": f["claimed_by"],
-            "bail_expire": f["lease_expires"],
-            "raison_cloture": f["closed_reason"], "clos_le": f["closed_at"],
-            "historique": hist,
+            "front": f["key"], "title": f["title"], "state": f["status"],
+            "rationale": f["rationale"], "cost": f["cost"], "gain": f["gain"],
+            "rank": f["priority"], "claimed_by": f["claimed_by"],
+            "lease_expires": f["lease_expires"],
+            "closed_because": f["closed_reason"], "closed_at": f["closed_at"],
+            "history": hist,
         }
     except Exception as exc:
         return _fail(exc)
 
 
 @server.tool(
-    title="Réserver un front",
+    title="Claim a front",
     description=(
-        "Pose un bail sur un front pour éviter que deux agents brûlent le même CPU. "
-        "Le bail expire tout seul — un front abandonné se libère."
+        "Takes a lease on a front so two agents do not burn the same compute. The lease "
+        "expires by itself, so an abandoned claim frees itself. Claim only when you are "
+        "about to spend real time; a claim is a promise, not a bookmark."
     ),
 )
 def claim_front(
-    session: Annotated[str, Field(description="Identifiant de session.")],
-    problem: Annotated[str, Field(description="Slug du problème.")],
-    front: Annotated[str, Field(description="Clé du front.")],
-    hours: Annotated[int, Field(description="Durée du bail.", ge=1, le=168)] = DEFAULT_LEASE_HOURS,
+    session: Annotated[str, Field(description="Session identifier.")],
+    problem: Annotated[str, Field(description="Problem slug.")],
+    front: Annotated[str, Field(description="Front key.")],
+    hours: Annotated[int, Field(description="Lease length in hours.", ge=1, le=168)] = DEFAULT_LEASE_HOURS,
 ) -> dict:
     try:
         st = store()
@@ -387,29 +411,29 @@ def claim_front(
         st.expire_leases()
         f = st.front(p["id"], front)
         if f is None:
-            raise KeyError(f"front inconnu '{front}'")
+            raise KeyError(f"unknown front '{front}'")
         if f["status"] == "closed":
-            return {"ok": False, "error": f"front déjà clos : {f['closed_reason']}"}
+            return {"ok": False, "error": f"front already closed: {f['closed_reason']}"}
         if f["status"] == "claimed" and f["claimed_by"] != s["contributor"]:
-            return {"ok": False, "error": f"déjà pris par {f['claimed_by']} jusqu'à {f['lease_expires']}",
-                    "conseil": "prends-en un autre, ou attends l'expiration du bail."}
+            return {"ok": False, "error": f"held by {f['claimed_by']} until {f['lease_expires']}",
+                    "advice": "take another, or wait for the lease to expire."}
         exp = (datetime.now(timezone.utc) + timedelta(hours=hours)).isoformat(timespec="seconds")
         st.db.execute(
             "UPDATE fronts SET status='claimed', claimed_by=?, claimed_at=?, lease_expires=? WHERE id=?",
             (s["contributor"], utcnow(), exp, f["id"]),
         )
         st.db.commit()
-        return {"ok": True, "front": front, "bail_expire": exp,
-                "rappel": "search_ledger sur ce sujet avant de commencer."}
+        return {"ok": True, "front": front, "lease_expires": exp,
+                "reminder": "search_ledger on this subject before you start."}
     except Exception as exc:
         return _fail(exc)
 
 
-@server.tool(title="Libérer un front", description="Rend un front réservé sans rien conclure.")
+@server.tool(title="Release a front", description="Returns a claimed front without concluding anything.")
 def release_front(
-    session: Annotated[str, Field(description="Identifiant de session.")],
-    problem: Annotated[str, Field(description="Slug du problème.")],
-    front: Annotated[str, Field(description="Clé du front.")],
+    session: Annotated[str, Field(description="Session identifier.")],
+    problem: Annotated[str, Field(description="Problem slug.")],
+    front: Annotated[str, Field(description="Front key.")],
 ) -> dict:
     try:
         st = store()
@@ -421,31 +445,32 @@ def release_front(
             (p["id"], front),
         )
         st.db.commit()
-        return {"ok": True, "front": front, "etat": "open"}
+        return {"ok": True, "front": front, "state": "open"}
     except Exception as exc:
         return _fail(exc)
 
 
 @server.tool(
-    title="Rendre un résultat",
+    title="Report a result",
     description=(
-        "Écrit au registre. Le champ `why` est obligatoire et substantiel : c'est le "
-        "raisonnement qui évite à quelqu'un de refaire le travail. Rends AUSSI les échecs — "
-        "verdict 'dead-end' ou 'refute' — ils valent plus qu'un résultat vague."
+        "Writes to the ledger. `why` is mandatory and substantial: it is the reasoning "
+        "that stops somebody redoing the work. File failures too — verdict 'dead-end' "
+        "or 'refute' — they are worth more than a vague result. Write at boundaries, "
+        "not at the end of the session."
     ),
 )
 def report_result(
-    session: Annotated[str, Field(description="Identifiant de session.")],
-    problem: Annotated[str, Field(description="Slug du problème.")],
+    session: Annotated[str, Field(description="Session identifier.")],
+    problem: Annotated[str, Field(description="Problem slug.")],
     verdict: Annotated[str, Field(description="close | advance | refute | dead-end | ops-note")],
-    statut: Annotated[str, Field(description="certified | measured | conjectured | refuted")],
-    summary: Annotated[str, Field(description="QUOI, en une phrase dense et chiffrée.")],
-    why: Annotated[str, Field(description="POURQUOI : le mécanisme, la cause, le blocage. Le champ qui compte.")],
-    front: Annotated[str | None, Field(description="Clé du front concerné, si applicable.")] = None,
+    statut: Annotated[str, Field(description="certified (needs an artifact) | measured | conjectured | refuted")],
+    summary: Annotated[str, Field(description="WHAT happened, in one dense sentence with the numbers in it.")],
+    why: Annotated[str, Field(description="WHY: the mechanism, where exactly it breaks, or what was measured and over what range. The field that matters.")],
+    front: Annotated[str | None, Field(description="Key of the front this belongs to, if any.")] = None,
     artifacts: Annotated[
-        list[str] | None, Field(description="Poignées sha256 renvoyées par put_artifact.")
+        list[str] | None, Field(description="sha256 handles returned by put_artifact.")
     ] = None,
-    force: Annotated[bool, Field(description="Écrire malgré un quasi-doublon détecté.")] = False,
+    force: Annotated[bool, Field(description="Write despite a detected near-duplicate.")] = False,
 ) -> dict:
     try:
         st = store()
@@ -453,35 +478,35 @@ def report_result(
         p = st.problem_or_die(problem)
 
         if verdict not in VERDICTS:
-            raise ValueError(f"verdict invalide. attendu : {' | '.join(VERDICTS)}")
+            raise ValueError(f"invalid verdict. expected: {' | '.join(VERDICTS)}")
         if statut not in STATUTS:
-            raise ValueError(f"statut invalide. attendu : {' | '.join(STATUTS)}")
+            raise ValueError(f"invalid statut. expected: {' | '.join(STATUTS)}")
         if len((why or "").strip()) < MIN_WHY:
             raise ValueError(
-                f"`why` fait {len((why or '').strip())} caractères, minimum {MIN_WHY}. "
-                "Un verdict sans raisonnement fait perdre du temps au lecteur suivant : dis le "
-                "mécanisme, la cause du blocage, ou ce qui a été mesuré et comment."
+                f"`why` is {len((why or '').strip())} characters, minimum {MIN_WHY}. A verdict "
+                "with no reasoning wastes the next reader's time: name the mechanism, the "
+                "point where it breaks, or what was measured and how."
             )
         if statut == "certified" and not (artifacts or []):
             raise ValueError(
-                "statut 'certified' exige au moins un artefact (script, log, certificat) : "
-                "utilise put_artifact puis repasse la poignée. Sinon déclare 'measured'."
+                "statut 'certified' requires at least one artifact (script, log, certificate): "
+                "use put_artifact and pass the handle back. Otherwise declare 'measured'."
             )
 
         dups = st.near_duplicates(p["id"], summary + " " + why)
         if dups and not force:
             return {
                 "ok": False,
-                "quasi_doublon": dups,
-                "conseil": "Ce constat semble déjà au registre. Si ton résultat est réellement "
-                           "différent, précise en quoi dans `why` et rappelle avec force=true.",
+                "near_duplicate": dups,
+                "advice": "This looks like it is already in the ledger. If your result really "
+                          "differs, say how in `why` and call again with force=true.",
             }
 
         fid = None
         if front:
             f = st.front(p["id"], front)
             if f is None:
-                raise KeyError(f"front inconnu '{front}'")
+                raise KeyError(f"unknown front '{front}'")
             fid = f["id"]
 
         eid = st.add_entry(
@@ -500,144 +525,146 @@ def report_result(
             st.db.commit()
             closed = True
 
+        _publish()
         return {
-            "ok": True, "entree": eid, "front_clos": closed,
-            "note": "Front clos ; pense à ouvrir le suivant avec open_front pour que le registre "
-                    "ne se vide pas." if closed else
-                    "Enregistré. Si cette session a produit du code ou des logs, attache-les "
-                    "avec put_artifact.",
+            "ok": True, "entry": eid, "front_closed": closed,
+            "note": "Front closed. Say what it unblocks, and open the next one with open_front "
+                    "if closing it made an adjacent line reachable." if closed else
+                    "Filed. If this session produced code or logs, attach them with "
+                    "put_artifact.",
         }
     except Exception as exc:
         return _fail(exc)
 
 
 @server.tool(
-    title="Ouvrir un front",
-    description="Déclare un nouveau chantier. La règle de la campagne : une piste fermée, une piste ouverte.",
+    title="Open a front",
+    description="Declares new work on a problem. Say why it is promising and where to start.",
 )
 def open_front(
-    session: Annotated[str, Field(description="Identifiant de session.")],
-    problem: Annotated[str, Field(description="Slug du problème.")],
-    key: Annotated[str, Field(description="Clé courte en kebab-case, stable.")],
-    title: Annotated[str, Field(description="Titre lisible.")],
-    rationale: Annotated[str, Field(description="Pourquoi c'est prometteur et par où commencer.")],
+    session: Annotated[str, Field(description="Session identifier.")],
+    problem: Annotated[str, Field(description="Problem slug.")],
+    key: Annotated[str, Field(description="Short stable key in kebab-case.")],
+    title: Annotated[str, Field(description="Readable title.")],
+    rationale: Annotated[str, Field(description="Why it is promising and where to start.")],
     cost: Annotated[str, Field(description="low | medium | high")] = "medium",
-    gain: Annotated[str, Field(description="Ce qu'on gagne si ça marche.")] = "",
-    priority: Annotated[int, Field(description="1 = le plus prometteur.", ge=1, le=999)] = 50,
+    gain: Annotated[str, Field(description="What is gained if it works.")] = "",
+    priority: Annotated[int, Field(description="1 = most promising.", ge=1, le=999)] = 50,
 ) -> dict:
     try:
         st = store()
         _session_or_fail(session)
         p = st.problem_or_die(problem)
         if cost not in COSTS:
-            raise ValueError(f"cost invalide. attendu : {' | '.join(COSTS)}")
+            raise ValueError(f"invalid cost. expected: {' | '.join(COSTS)}")
         if len((rationale or "").strip()) < MIN_WHY:
-            raise ValueError(f"`rationale` trop court (min {MIN_WHY} car.) — dis par où on attaque.")
+            raise ValueError(f"`rationale` too short (min {MIN_WHY} chars): say where to start.")
         if st.front(p["id"], key) is not None:
-            return {"ok": False, "error": f"le front '{key}' existe déjà."}
+            return {"ok": False, "error": f"front '{key}' already exists."}
         st.upsert_front(p["id"], p["slug"], key=key, title=title, rationale=rationale,
                         cost=cost, gain=gain, status="open", priority=priority)
+        _publish()
         return {"ok": True, "front": key}
     except Exception as exc:
         return _fail(exc)
 
 
 @server.tool(
-    title="Ouvrir un problème",
+    title="Open a problem",
     description=(
-        "Déclare un nouveau problème dans le registre. À faire avant d'y travailler, "
-        "pour que quelqu'un d'autre puisse s'y joindre. Un problème sans front ouvert "
-        "est un problème sur lequel personne ne sait par où entrer : ouvre-en au moins "
-        "un dans la foulée avec open_front."
+        "Registers a problem nobody is tracking yet. Do this before working on it so "
+        "somebody else can join. A problem with no open front is one nobody knows how "
+        "to enter, so open at least one straight after with open_front."
     ),
 )
 def open_problem(
-    session: Annotated[str, Field(description="Identifiant de session.")],
-    slug: Annotated[str, Field(description="Identifiant court en kebab-case, stable et citable, ex: 'erdos-707'.")],
-    title: Annotated[str, Field(description="Énoncé court et reconnaissable du problème.")],
-    statement: Annotated[str, Field(description="L'énoncé complet et précis, avec ses quantificateurs.")],
+    session: Annotated[str, Field(description="Session identifier.")],
+    slug: Annotated[str, Field(description="Short stable citable key in kebab-case, e.g. 'erdos-707'.")],
+    title: Annotated[str, Field(description="Short recognisable name of the problem.")],
+    statement: Annotated[str, Field(description="The full precise statement, quantifiers explicit, notation defined.")],
     one_liner: Annotated[
-        str, Field(description="L'état en une phrase : ce qui est acquis aujourd'hui.")
+        str, Field(description="State in one sentence: what is established today.")
     ] = "",
     source_url: Annotated[
-        str | None, Field(description="La référence faisant autorité (erdosproblems.com, arXiv…).")
+        str | None, Field(description="The authoritative reference (erdosproblems.com, arXiv, …).")
     ] = None,
     honest_estimate: Annotated[
-        str | None, Field(description="Estimation honnête des chances de conclure. Ne pas embellir.")
+        str | None, Field(description="Honest estimate of the chances of concluding. Do not flatter it.")
     ] = None,
 ) -> dict:
     try:
         st = store()
         _session_or_fail(session)
         if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", slug or ""):
-            raise ValueError("slug invalide : minuscules, chiffres et tirets, ex. 'erdos-707'.")
+            raise ValueError("invalid slug: lowercase, digits and hyphens, e.g. 'erdos-707'.")
         if st.problem(slug) is not None:
-            return {"ok": False, "error": f"le problème '{slug}' existe déjà.",
-                    "conseil": "briefing(problem) pour voir où il en est."}
+            return {"ok": False, "error": f"problem '{slug}' already exists.",
+                    "advice": "briefing(problem) to see where it stands."}
         if len((statement or "").strip()) < 60:
             raise ValueError(
-                "`statement` trop court. L'énoncé doit être autonome et sans ambiguïté : "
-                "quantificateurs explicites, notations définies. Le lecteur suivant n'aura "
-                "que ça."
+                "`statement` too short. It has to stand alone and be unambiguous: explicit "
+                "quantifiers, defined notation. It is all the next reader will have."
             )
         st.upsert_problem(slug=slug, title=title, statement=statement, status="open",
                           one_liner=one_liner or None, source_url=source_url,
                           honest_estimate=honest_estimate)
+        _publish()
         return {
             "ok": True, "problem": slug,
-            "suite": "Ouvre au moins un front avec open_front, sinon personne ne saura par "
-                     "où entrer. Puis report_result au fur et à mesure.",
+            "next": "Open at least one front with open_front, or nobody will know where to "
+                    "start. Then report_result as you go.",
         }
     except Exception as exc:
         return _fail(exc)
 
 
 @server.tool(
-    title="Déposer un artefact",
+    title="Store an artifact",
     description=(
-        "Stocke un script, un log ou un jeu de données. Déduplication par contenu et "
-        "compression : rien ne traverse jamais ton contexte, tu récupères une poignée sha256 "
-        "à joindre à report_result. Donne `path` pour un fichier volumineux."
+        "Stores a script, a log or a dataset. Content-addressed and compressed: nothing "
+        "crosses your context, you get a sha256 handle to attach to report_result. Pass "
+        "`path` for anything large. Attach the script that produced a figure, not a "
+        "description of it."
     ),
 )
 def put_artifact(
-    session: Annotated[str, Field(description="Identifiant de session.")],
-    filename: Annotated[str, Field(description="Nom de fichier, pour la lisibilité.")],
-    content: Annotated[str | None, Field(description="Contenu inline (petits fichiers).")] = None,
-    path: Annotated[str | None, Field(description="Chemin local à lire (gros fichiers).")] = None,
+    session: Annotated[str, Field(description="Session identifier.")],
+    filename: Annotated[str, Field(description="Filename, for readability.")],
+    content: Annotated[str | None, Field(description="Inline content, for small files.")] = None,
+    path: Annotated[str | None, Field(description="Local path to read, for large files.")] = None,
     kind: Annotated[str, Field(description="script | log | data | proof | note")] = "data",
 ) -> dict:
     try:
         st = store()
         _session_or_fail(session)
         if not content and not path:
-            raise ValueError("donne `content` ou `path`.")
+            raise ValueError("pass either `content` or `path`.")
         raw = Path(path).read_bytes() if path else (content or "").encode()
         if not raw:
-            raise ValueError("artefact vide.")
+            raise ValueError("empty artifact.")
         meta = st.put_artifact(raw, kind=kind, filename=filename)
         return {
             "ok": True, **meta,
-            "note": "contenu déjà présent, réutilisé" if meta["deduplicated"] else
-                    f"compressé {meta['size']}→{meta['stored']} octets",
+            "note": "content already present, reused" if meta["deduplicated"] else
+                    f"compressed {meta['size']} to {meta['stored']} bytes",
         }
     except Exception as exc:
         return _fail(exc)
 
 
 @server.tool(
-    title="Lire un artefact",
+    title="Read an artifact",
     description=(
-        "Lit une TRANCHE d'un artefact : head, tail, une plage de lignes, ou les lignes "
-        "contenant un motif. Ne rapatrie jamais un gros fichier en entier."
+        "Reads a SLICE of an artifact: head, tail, a line range, or the lines matching a "
+        "pattern. Never pulls a large file whole."
     ),
 )
 def read_artifact(
-    sha256: Annotated[str, Field(description="Poignée, préfixe de 8 caractères accepté.")],
+    sha256: Annotated[str, Field(description="Handle; an 8-character prefix is accepted.")],
     mode: Annotated[str, Field(description="head | tail | range | grep | meta")] = "head",
-    lines: Annotated[int, Field(description="Nombre de lignes pour head/tail.", ge=1, le=400)] = 40,
-    start: Annotated[int, Field(description="Première ligne pour mode 'range' (1-indexé).", ge=1)] = 1,
-    pattern: Annotated[str | None, Field(description="Motif pour le mode 'grep'.")] = None,
+    lines: Annotated[int, Field(description="Number of lines for head/tail.", ge=1, le=400)] = 40,
+    start: Annotated[int, Field(description="First line for 'range' mode, 1-indexed.", ge=1)] = 1,
+    pattern: Annotated[str | None, Field(description="Pattern for 'grep' mode.")] = None,
 ) -> dict:
     try:
         st = store()
@@ -647,10 +674,10 @@ def read_artifact(
                 "SELECT sha256 FROM artifacts WHERE sha256 LIKE ? LIMIT 2", (sha256 + "%",)
             ).fetchall()
             if len(hit) != 1:
-                raise KeyError(f"artefact introuvable ou préfixe ambigu : {sha256}")
+                raise KeyError(f"artifact not found, or ambiguous prefix: {sha256}")
             row = st.artifact_meta(hit[0]["sha256"])
-        meta = {"sha256": row["sha256"], "nom": row["filename"], "type": row["kind"],
-                "octets": row["size"], "lignes": row["lines"]}
+        meta = {"sha256": row["sha256"], "name": row["filename"], "kind": row["kind"],
+                "bytes": row["size"], "lines": row["lines"]}
         if mode == "meta":
             return {"ok": True, **meta}
         text = (st.artifact_bytes(row["sha256"]) or b"").decode("utf-8", "replace")
@@ -663,34 +690,34 @@ def read_artifact(
             sel, first = all_lines[start - 1 : start - 1 + lines], start
         elif mode == "grep":
             if not pattern:
-                raise ValueError("mode 'grep' exige `pattern`.")
+                raise ValueError("'grep' mode requires `pattern`.")
             sel = [f"{i}: {l}" for i, l in enumerate(all_lines, 1) if pattern in l][:lines]
             first = 0
         else:
-            raise ValueError("mode invalide : head | tail | range | grep | meta")
-        return {"ok": True, **meta, "premiere_ligne": first, "contenu": "\n".join(sel)}
+            raise ValueError("invalid mode: head | tail | range | grep | meta")
+        return {"ok": True, **meta, "first_line": first, "content": "\n".join(sel)}
     except Exception as exc:
         return _fail(exc)
 
 
 @server.tool(
-    title="Classement des contributeurs",
-    description="Score pondéré par verdict et statut. Clore et réfuter rapportent plus qu'avancer.",
+    title="Standing",
+    description="Weighted by verdict and status. Closing and refuting score above advancing.",
 )
 def leaderboard(limit: Annotated[int, Field(ge=1, le=100)] = 20) -> dict:
     try:
         rows = store().leaderboard(limit)
-        return {"ok": True, "classement": [
-            {"rang": i, "contributeur": r["name"], "score": round(r["score"], 1),
-             "entrees": r["n_entries"], "fronts_clos": r["n_closes"]}
+        return {"ok": True, "standing": [
+            {"rank": i, "contributor": r["name"], "score": round(r["score"], 1),
+             "entries": r["n_entries"], "fronts_closed": r["n_closes"]}
             for i, r in enumerate(rows, 1)
-        ], "bareme": "close 10 · refute 8 · dead-end 6 · advance 5 · ops-note 2, "
-                     "×2 si certifié, ×1,4 si mesuré."}
+        ], "scale": "close 10 · refute 8 · dead-end 6 · advance 5 · ops-note 2, "
+                    "doubled if certified, ×1.4 if measured."}
     except Exception as exc:
         return _fail(exc)
 
 
-@server.tool(title="État du serveur", description="Volumétrie, compression, sessions.")
+@server.tool(title="Server status", description="Volume, compression, sessions.")
 def server_status() -> dict:
     try:
         st = store()
@@ -699,12 +726,12 @@ def server_status() -> dict:
         n_verified = st.db.execute("SELECT COUNT(*) FROM sessions WHERE tier='contributor'").fetchone()[0]
         return {
             "ok": True,
-            "base": DB_PATH,
-            "octets_base": os.path.getsize(DB_PATH) if os.path.exists(DB_PATH) else 0,
-            "problemes": len(st.list_problems()),
-            "artefacts": {"nombre": a["count"], "octets_bruts": a["raw_bytes"],
-                          "octets_stockes": a["stored_bytes"], "compression": f"×{a['ratio']}"},
-            "sessions": {"ouvertes": n_sessions, "validees": n_verified},
+            "database": DB_PATH,
+            "database_bytes": os.path.getsize(DB_PATH) if os.path.exists(DB_PATH) else 0,
+            "problems": len(st.list_problems()),
+            "artifacts": {"count": a["count"], "raw_bytes": a["raw_bytes"],
+                          "stored_bytes": a["stored_bytes"], "compression": f"x{a['ratio']}"},
+            "sessions": {"opened": n_sessions, "verified": n_verified},
         }
     except Exception as exc:
         return _fail(exc)
@@ -712,7 +739,7 @@ def server_status() -> dict:
 
 def main() -> None:
     if os.environ.get("CAIRN_DEBUG"):
-        print(f"cairn MCP — base {DB_PATH}", file=sys.stderr)
+        print(f"cairn MCP — database {DB_PATH}", file=sys.stderr)
     store()
     server.run("stdio")
 

@@ -1,0 +1,36 @@
+[project]
+name = "cairn-mcp"
+version = "0.2.0"
+description = "A shared ledger of attempts and dead ends on open mathematical problems, over MCP"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "chercheur1801" }]
+keywords = ["mcp", "mathematics", "erdos", "open-problems", "research"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Topic :: Scientific/Engineering :: Mathematics",
+]
+dependencies = ["mcp>=2.0.0"]
+
+[project.urls]
+Homepage = "https://lukaa-s.github.io/cairn/"
+Source = "https://github.com/Lukaa-s/cairn"
+
+[project.scripts]
+cairn-mcp = "cairn.server:main"
+cairn-sync = "cairn.sync:main"
+
+[project.optional-dependencies]
+# Only needed to regenerate the site's font subsets from CTAN.
+site = ["fonttools>=4.50", "brotli>=1.1"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["cairn"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"ledger" = "cairn/_ledger"

@@ -79,10 +79,10 @@ def _sqdists_from(pts: list[tuple[int, int]], i: int) -> list[int]:
 
 
 _TRAP = (
-    "Attention : les coordonnées entières ci-dessus font foi. Ne recalcule pas les\n"
-    "sommets depuis un cercle et ne compare pas des distances en virgule flottante —\n"
-    "l'égalité demandée est l'égalité EXACTE des entiers. Ce polygone est symétrique,\n"
-    "donc il y a de vraies égalités à ne pas manquer et de fausses à ne pas créer."
+    "The integer coordinates above are authoritative. Do not recompute the vertices\n"
+    "from a circle, and do not compare distances in floating point: the equality being\n"
+    "asked about is EXACT integer equality. This polygon is symmetric, so there are\n"
+    "real coincidences you must not miss and false ones you must not create."
 )
 
 
@@ -101,12 +101,12 @@ def _make_min_distinct(rng: random.Random) -> tuple[str, str]:
     counts = [len(set(_sqdists_from(pts, i))) for i in range(n)]
     m = min(counts)
     return (
-        f"Soit le {n}-gone convexe de sommets entiers, dans l'ordre cyclique direct :\n"
+        f"Let the convex {n}-gon with integer vertices, in counter-clockwise order, be\n"
         f"  {_fmt(pts)}\n\n"
-        f"Pour un sommet p, note D(p) le nombre de valeurs DISTINCTES prises par le carré\n"
-        f"de la distance de p vers les {n - 1} autres sommets.\n\n"
-        f"Calcule m = min_p D(p), puis k = le nombre de sommets atteignant ce minimum.\n"
-        f"Réponds exactement \"m,k\" : deux entiers séparés par une virgule, sans espace.\n\n"
+        f"For a vertex p, let D(p) be the number of DISTINCT values taken by the squared\n"
+        f"distance from p to the other {n - 1} vertices.\n\n"
+        f"Compute m = min_p D(p), then k = the number of vertices attaining that minimum.\n"
+        f"Answer exactly \"m,k\": two integers separated by a comma, no space.\n\n"
         f"{_TRAP}",
         f"{m},{counts.count(m)}",
     )
@@ -127,13 +127,13 @@ def _make_isosceles_count(rng: random.Random) -> tuple[str, str]:
             buckets[d] = buckets.get(d, 0) + 1
         total += sum(c * (c - 1) // 2 for c in buckets.values())
     return (
-        f"Soit le {n}-gone convexe de sommets entiers, dans l'ordre cyclique direct :\n"
+        f"Let the convex {n}-gon with integer vertices, in counter-clockwise order, be\n"
         f"  {_fmt(pts)}\n\n"
-        f"Pour chaque sommet p, regroupe les {n - 1} carrés de distances de p vers les autres\n"
-        f"sommets par valeur exactement égale. Une valeur apparaissant μ fois fournit C(μ,2)\n"
-        f"paires. Note E la somme de ces C(μ,2) sur TOUS les sommets p — c'est le nombre de\n"
-        f"triangles isocèles comptés par apex.\n\n"
-        f"Réponds par le seul entier E.\n\n"
+        f"For each vertex p, group the {n - 1} squared distances from p to the other vertices\n"
+        f"by exactly equal value. A value occurring μ times contributes C(μ,2) pairs. Let E\n"
+        f"be the sum of those C(μ,2) over ALL vertices p, i.e. the number of isosceles\n"
+        f"triangles counted by apex.\n\n"
+        f"Answer with the single integer E.\n\n"
         f"{_TRAP}",
         str(total),
     )
@@ -147,12 +147,11 @@ def _make_exact_rational(rng: random.Random) -> tuple[str, str]:
     b = rng.choice([1, 3, 5, 7])
     total = sum(Fraction(1, k * k + a * k + b) for k in range(1, N + 1))
     return (
-        f"Calcule la somme exacte\n"
+        f"Compute the exact sum\n"
         f"  S = Σ_{{k=1}}^{{{N}}} 1 / (k² + {a}·k + {b})\n\n"
-        f"Réponds par la fraction irréductible \"numérateur/dénominateur\", sans espace.\n\n"
-        f"Attention : une sommation en virgule flottante ne redonnera pas la fraction\n"
-        f"exacte — il faut de l'arithmétique rationnelle. Le dénominateur a plusieurs\n"
-        f"dizaines de chiffres.",
+        f"Answer with the reduced fraction \"numerator/denominator\", no spaces.\n\n"
+        f"A floating-point summation will not give the exact fraction: this needs rational\n"
+        f"arithmetic. The denominator runs to several dozen digits.",
         f"{total.numerator}/{total.denominator}",
     )
 

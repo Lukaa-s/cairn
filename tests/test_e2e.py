@@ -28,8 +28,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-DB = Path(tempfile.mkdtemp(prefix="cairn-e2e-")) / "test.db"
+_TMP = Path(tempfile.mkdtemp(prefix="cairn-e2e-"))
+DB = _TMP / "test.db"
 os.environ["CAIRN_DB"] = str(DB)
+# The server exports to the text ledger after every write. Point that at the
+# temp directory too, or a test run silently appends test-42 to the real one.
+os.environ["CAIRN_LEDGER"] = str(_TMP / "ledger")
 
 import mcp.types as types  # noqa: E402
 from mcp import Client  # noqa: E402
@@ -147,18 +151,18 @@ async def run() -> None:
     async with make_client(srv, None) as c:
         listed = await c.list_tools()
         tools = {t.name for t in getattr(listed, "tools", listed)}
-        ok("les 15 outils sont exposés", len(tools) == 15, f"{len(tools)}")
+        ok("the 16 tools are exposed", len(tools) == 16, f"{len(tools)}")
 
         r = payload(await c.call_tool("open_session", {"model": "claude-opus-5",
                                                        "contributor": "testeur"}))
         ok("open_session accepte", r.get("ok") is True, str(r)[:200])
         sid = r["session"]
-        ok("aucune attestation sans sampling", r["identite"]["modele_atteste"] is None)
-        ok("la confiance est annoncée non vérifiée", r["identite"]["confiance"] == "non vérifié")
-        ok("le client est identifié par le protocole", bool(r["identite"]["client"]),
-           r["identite"]["client"])
+        ok("aucune attestation sans sampling", r["identity"]["model_attested"] is None)
+        ok("la confiance est annoncée non vérifiée", r["identity"]["confidence"] == "unverified")
+        ok("le client est identifié par le protocole", bool(r["identity"]["client"]),
+           r["identity"]["client"])
 
-        chall = r["epreuve"]
+        chall = r["challenge"]
         print(f"    épreuve tirée : {chall['type']}")
 
         bad = payload(await c.call_tool("prove_capability", {"session": sid, "answer": "0"}))
@@ -170,7 +174,7 @@ async def run() -> None:
             "why": "ceci ne doit pas passer car la session n'a pas prouvé sa capacité du tout."}))
         ok("écriture fermée avant l'épreuve", w.get("ok") is False and "PermissionError" in w.get("error", ""))
 
-        answer = solve(chall["type"], chall["enonce"])
+        answer = solve(chall["type"], chall["prompt"])
         good = payload(await c.call_tool("prove_capability", {"session": sid, "answer": answer}))
         ok("épreuve résolue depuis son seul énoncé", good.get("correct") is True, str(good)[:200])
         ok("le rang passe à contributeur", good.get("tier") == "contributor")
@@ -184,9 +188,9 @@ async def run() -> None:
 
         s = payload(await c.call_tool("search_ledger", {"problem": "test-42",
                                                         "query": "symétrisation monotone"}))
-        ok("la recherche retrouve l'impasse", any("symétrisation" in str(x) for x in s["resultats"]))
+        ok("la recherche retrouve l'impasse", any("symétrisation" in str(x) for x in s["results"]))
         ok("la recherche renvoie le pourquoi",
-           any(x.get("pourquoi") for x in s["resultats"] if x["type"] == "entry"))
+           any(x.get("why") for x in s["results"] if x["type"] == "entry"))
 
         # --- claim / lease
         cl = payload(await c.call_tool("claim_front", {"session": sid, "problem": "test-42",
@@ -194,7 +198,7 @@ async def run() -> None:
         ok("front réservé", cl.get("ok") is True, str(cl)[:150])
         lf = payload(await c.call_tool("list_fronts", {"problem": "test-42"}))
         ok("la réservation est visible",
-           any(f["front"] == "front-a" and f["pris_par"] == "testeur" for f in lf["fronts"]))
+           any(f["front"] == "front-a" and f["claimed_by"] == "testeur" for f in lf["fronts"]))
 
         # --- write discipline
         short = payload(await c.call_tool("report_result", {
@@ -222,10 +226,10 @@ async def run() -> None:
         sha = a["sha256"]
         rd = payload(await c.call_tool("read_artifact", {"sha256": sha[:8], "mode": "tail",
                                                           "lines": 3}))
-        ok("lecture par préfixe et par tranche", rd.get("ok") and "ligne 4999" in rd["contenu"])
+        ok("lecture par préfixe et par tranche", rd.get("ok") and "ligne 4999" in rd["content"])
         g = payload(await c.call_tool("read_artifact", {"sha256": sha, "mode": "grep",
                                                          "pattern": "ligne 4242", "lines": 5}))
-        ok("grep dans un artefact", g.get("ok") and "4242" in g["contenu"])
+        ok("grep dans un artefact", g.get("ok") and "4242" in g["content"])
 
         # --- the real write
         w = payload(await c.call_tool("report_result", {
@@ -236,14 +240,14 @@ async def run() -> None:
                    "arithmétique exacte à 40 décimales après re-polissage des argmins.",
             "artifacts": [sha]}))
         ok("écriture acceptée", w.get("ok") is True, str(w)[:200])
-        ok("le front est clos par le verdict", w.get("front_clos") is True)
+        ok("le front est clos par le verdict", w.get("front_closed") is True)
 
         dup = payload(await c.call_tool("report_result", {
             "session": sid, "problem": "test-42", "verdict": "advance", "statut": "measured",
             "summary": "front-a clos : la borne tient sur toute la boîte",
             "why": "Le plancher mesuré vaut 5,3e-3 sur la boîte entière, certifié en "
                    "arithmétique exacte à 40 décimales après re-polissage des argmins."}))
-        ok("quasi-doublon intercepté", dup.get("ok") is False and "quasi_doublon" in dup)
+        ok("quasi-doublon intercepté", dup.get("ok") is False and "near_duplicate" in dup)
 
         forced = payload(await c.call_tool("report_result", {
             "session": sid, "problem": "test-42", "verdict": "advance", "statut": "measured",
@@ -254,9 +258,9 @@ async def run() -> None:
         ok("force=true passe outre", forced.get("ok") is True)
 
         fd = payload(await c.call_tool("front_detail", {"problem": "test-42", "front": "front-a"}))
-        ok("le détail du front porte son historique", len(fd["historique"]) >= 1)
+        ok("le détail du front porte son historique", len(fd["history"]) >= 1)
         ok("l'artefact est rattaché à l'entrée",
-           any(h["artefacts"] for h in fd["historique"]))
+           any(h["artifacts"] for h in fd["history"]))
 
         nf = payload(await c.call_tool("open_front", {
             "session": sid, "problem": "test-42", "key": "front-c", "title": "Chantier suivant",
@@ -267,39 +271,39 @@ async def run() -> None:
 
         lb = payload(await c.call_tool("leaderboard", {}))
         ok("le classement compte le contributeur",
-           any(x["contributeur"] == "testeur" for x in lb["classement"]))
+           any(x["contributor"] == "testeur" for x in lb.get("standing", [])))
 
         stt = payload(await c.call_tool("server_status", {}))
-        ok("état du serveur cohérent", stt.get("ok") and stt["artefacts"]["nombre"] >= 1)
+        ok("état du serveur cohérent", stt.get("ok") and stt["artifacts"]["count"] >= 1)
 
     print("\n▸ Protocole 2026-07-28 : la sonde est interdite par la spec")
     async with make_client(srv, "claude-opus-5-20260101", mode="auto") as c:
         r = payload(await c.call_tool("open_session", {"model": "claude-opus-5",
                                                        "contributor": "moderne"}))
-        idt = r["identite"]
-        ok("le protocole moderne est bien négocié", idt["protocole"] == "2026-07-28",
-           str(idt["protocole"]))
+        idt = r["identity"]
+        ok("le protocole moderne est bien négocié", idt["protocol"] == "2026-07-28",
+           str(idt["protocol"]))
         ok("aucune attestation possible sur protocole moderne",
-           idt["modele_atteste"] is None and "NoBackChannel" in (idt["attestation"] or ""),
+           idt["model_attested"] is None and "NoBackChannel" in (idt["attestation"] or ""),
            str(idt)[:220])
         ok("la dégradation est silencieuse et la session reste utilisable", r.get("ok") is True)
 
     print("\n▸ Protocole ≤2025-11-25 : la sonde fonctionne")
     async with make_client(srv, "claude-opus-5-20260101", mode="legacy") as c:
         r = payload(await c.call_tool("open_session", {"model": "je-mens", "contributor": "attesté"}))
-        idt = r["identite"]
+        idt = r["identity"]
         ok("le modèle est attesté par le protocole",
-           r.get("ok") and idt["modele_atteste"] == "claude-opus-5-20260101", str(idt)[:250])
-        ok("la confiance monte à 'attesté'", idt["confiance"] == "attesté")
+           r.get("ok") and idt["model_attested"] == "claude-opus-5-20260101", str(idt)[:250])
+        ok("la confiance monte à 'attesté'", idt["confidence"] == "attested")
         ok("l'attestation l'emporte sur la déclaration mensongère",
-           idt["modele_declare"] == "je-mens" and idt["modele_atteste"].startswith("claude-opus"))
+           idt["model_declared"] == "je-mens" and idt["model_attested"].startswith("claude-opus"))
 
     print("\n▸ Protocole ≤2025-11-25 : modèle sous le seuil, déclaration flatteuse")
     async with make_client(srv, "claude-haiku-4-5-20251001", mode="legacy") as c:
         r = payload(await c.call_tool("open_session", {"model": "claude-opus-5",
                                                        "contributor": "menteur"}))
         ok("un modèle faible attesté est refusé malgré une déclaration flatteuse",
-           r.get("ok") is False and "attesté" in r.get("reason", ""), str(r)[:250])
+           r.get("ok") is False and "attested model" in r.get("reason", ""), str(r)[:250])
 
     print("\n▸ Déclaration honnête d'un modèle sous le seuil")
     async with make_client(srv, None) as c:

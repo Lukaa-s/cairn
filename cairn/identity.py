@@ -143,11 +143,11 @@ async def probe_model(ctx: Any, timeout: float = 12.0) -> dict:
     out: dict[str, Any] = {"model": None, "method": None, "detail": None}
     info = read_client(ctx)
     if not info["supports_sampling"]:
-        out["detail"] = "le client ne déclare pas la capacité sampling"
+        out["detail"] = "client does not declare the sampling capability"
         return out
     conn = connection_of(ctx)
     if conn is None:
-        out["detail"] = "pas de canal retour disponible"
+        out["detail"] = "no back-channel available"
         return out
 
     try:
@@ -156,13 +156,13 @@ async def probe_model(ctx: Any, timeout: float = 12.0) -> dict:
         if model:
             out["model"] = str(model)
             out["method"] = "sampling"
-            out["detail"] = "attesté par le client via sampling/createMessage"
+            out["detail"] = "attested by the client through sampling/createMessage"
         else:
-            out["detail"] = "sampling accepté mais sans champ 'model'"
+            out["detail"] = "sampling accepted but returned no 'model' field"
     except TimeoutError:
-        out["detail"] = f"sampling sans réponse en {timeout:g} s"
+        out["detail"] = f"sampling did not answer within {timeout:g}s"
     except Exception as exc:  # user declined, capability lied about, transport quirk
-        out["detail"] = f"sampling indisponible ({type(exc).__name__})"
+        out["detail"] = f"sampling unavailable ({type(exc).__name__})"
     return out
 
 
@@ -204,20 +204,20 @@ def decide(declared: str | None, attested: str | None, client: dict) -> dict:
     a_cls, d_cls = classify(attested), classify(declared)
 
     if a_cls == "refused":
-        return {"admit": False, "confidence": "attesté",
-                "reason": f"modèle attesté « {attested} » sous le seuil requis pour écrire au registre."}
+        return {"admit": False, "confidence": "attested",
+                "reason": f"attested model '{attested}' is below the bar required to write to the ledger."}
     if d_cls == "refused":
-        return {"admit": False, "confidence": "déclaré",
-                "reason": f"modèle déclaré « {declared} » sous le seuil requis pour écrire au registre."}
+        return {"admit": False, "confidence": "declared",
+                "reason": f"declared model '{declared}' is below the bar required to write to the ledger."}
     if a_cls == "admitted":
-        return {"admit": True, "confidence": "attesté",
-                "reason": f"modèle attesté « {attested} » via sampling — c'est le seul niveau de "
-                          f"preuve que le protocole permet."}
+        return {"admit": True, "confidence": "attested",
+                "reason": f"model '{attested}' attested through sampling, the only level of proof "
+                          f"the protocol allows."}
     if attested:
-        return {"admit": True, "confidence": "attesté-inconnu",
-                "reason": f"modèle attesté « {attested} », hors liste connue — l'épreuve de "
-                          f"capacité tranche."}
-    return {"admit": True, "confidence": "non vérifié",
-            "reason": "MCP ne transmet pas l'identité du modèle et ce client ne supporte pas le "
-                      "sampling. La déclaration est enregistrée pour l'attribution mais ne prouve "
-                      "rien : seule l'épreuve de capacité ouvre l'écriture."}
+        return {"admit": True, "confidence": "attested-unknown",
+                "reason": f"model '{attested}' attested but not on the known list; the capability "
+                          f"challenge decides."}
+    return {"admit": True, "confidence": "unverified",
+            "reason": "MCP does not carry model identity and this client does not support "
+                      "sampling. The declaration is recorded for attribution but proves "
+                      "nothing: only the capability challenge opens write access."}

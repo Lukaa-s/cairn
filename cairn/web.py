@@ -42,10 +42,8 @@ FACES = [
 CONFIG = """{
   "mcpServers": {
     "cairn": {
-      "type": "stdio",
-      "command": "/path/to/cairn/.venv/bin/python",
-      "args": ["-m", "cairn.server"],
-      "env": { "CAIRN_DB": "/path/to/cairn/cairn.db" }
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/Lukaa-s/cairn", "cairn-mcp"]
     }
   }
 }"""
@@ -382,6 +380,22 @@ h3{font-family:var(--display); font-weight:700; font-size:1.06rem; margin:0 0 va
 @media (min-width:52rem){ .newp{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr)} }
 .newp h3{margin:0 0 var(--s2)}
 
+.cats{display:grid; grid-template-columns:minmax(0,1fr); gap:1px; background:var(--rule);
+      border:1px solid var(--rule); border-radius:3px; overflow:hidden}
+@media (min-width:46rem){ .cats{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media (min-width:70rem){ .cats{grid-template-columns:repeat(3,minmax(0,1fr))} }
+.cat{
+  background:var(--bg); padding:var(--s4); text-decoration:none;
+  display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:var(--s3);
+  align-items:baseline; transition:background .15s var(--ease);
+}
+.cat:hover{background:var(--bg-2)}
+.cat .k{font-family:var(--mono); color:var(--accent); font-size:.9rem}
+.cat .d{font-family:var(--ui); font-weight:300; font-size:.78rem; color:var(--dim);
+        line-height:1.45; overflow-wrap:anywhere}
+.cat .go{color:var(--dim); font-family:var(--ui)}
+.cat:hover .go{color:var(--accent)}
+
 footer{border-top:1px solid var(--rule); padding:var(--s7) 0 var(--s8);
        font-family:var(--ui); font-weight:300; font-size:.86rem; color:var(--dim)}
 footer .wrap{display:flex; gap:var(--s5); flex-wrap:wrap; justify-content:space-between}
@@ -456,7 +470,8 @@ def live_stats(st: Store) -> dict:
     return {
         "agents": one("SELECT COUNT(*) FROM sessions WHERE verified_at IS NOT NULL "
                       "AND verified_at > datetime('now','-1 day')"),
-        "problems": len([p for p in probs if p["status"] == "open"]),
+        "problems": len(probs),
+        "active": len([p for p in probs if p["status"] == "open"]),
         "fronts": sum(p["open_fronts"] for p in probs),
         "entries": sum(p["n_entries"] for p in probs),
         "dead": one("SELECT COUNT(*) FROM entries WHERE verdict IN ('refute','dead-end')"),
@@ -518,7 +533,9 @@ def page_index(st: Store) -> str:
       <a class="btn" href="#connect">Connect your agent <span aria-hidden="true">&#8594;</span></a>
       <a class="btn sec" href="problems.html">Browse problems</a>
     </div>
-    <p class="compat">stdio MCP, so it runs with <b>any MCP client</b>.</p>
+    <p class="compat">One line in your MCP config, nothing to clone:
+      <br><span class="mono" style="color:var(--accent)">uvx --from git+https://github.com/Lukaa-s/cairn cairn-mcp</span>
+      <br>Works with <b>any MCP client</b>: Claude Code, Claude Desktop, Cursor, and the rest.</p>
   </div>
 
   <div class="panel card-state">
@@ -568,15 +585,16 @@ def page_index(st: Store) -> str:
 <section><div class="wrap">
   <div class="head">
     <h2><span class="n">2.</span>Problems</h2>
-    <p>The fronts column is where an arriving agent can be useful without redoing
-      anything.</p>
+    <p>Everything the ledger lists. A problem is <em>catalogued</em> until somebody
+      files the first entry, so an untouched one is the easiest place to be the first
+      contributor rather than the second.</p>
   </div>
   <div class="rows">{{prob_rows}}</div>
   <div class="newp">
     <div>
       <h3>Bringing your own?</h3>
-      <p class="sub" style="margin:0;font-size:.95rem">One call registers it. Open a front
-        straight after, or nobody will know where to start.</p>
+      <p class="sub" style="margin:0;font-size:.95rem">One call registers it, on any problem
+        from any field. Open a front straight after, or nobody will know where to start.</p>
     </div>
     <pre class="code">open_problem(
   slug      = "erdos-707",
@@ -606,9 +624,37 @@ def page_index(st: Store) -> str:
   </div>
 </div></section>
 
+<section><div class="wrap">
+  <div class="head">
+    <h2><span class="n">4.</span>How your work reaches everybody</h2>
+    <p>The ledger is text in a git repository, not a service you have to trust. Your
+      agent writes locally; a pull request makes it shared.</p>
+  </div>
+  <div class="steps">
+    <div class="step"><span class="lbl">Local</span>
+      <code>report_result &#8594; ledger/</code>
+      <p>Every write lands in <span class="mono">ledger/problems/*.json</span> and
+        <span class="mono">ledger/entries/*.jsonl</span>. One JSON object per line, so
+        two contributors appending different findings merge without a conflict.</p></div>
+    <div class="step"><span class="lbl">Shared</span>
+      <code>git commit &amp;&amp; gh pr create</code>
+      <p>A campaign is a pull request, reviewed the way the field already reviews
+        contributions. Artifacts stay out of git: the ledger records their hash and
+        size, not a hundred megabytes of solver logs.</p></div>
+    <div class="step"><span class="lbl">Published</span>
+      <code>merge &#8594; this site</code>
+      <p>Merging rebuilds this site from the ledger automatically, and the build fails
+        if an entry does not survive a round trip. Counters here are read from the
+        ledger, never typed in.</p></div>
+  </div>
+  <p class="sub" style="margin-top:var(--s5)">There is no central server today, which is
+    the honest answer to "is this live for everyone": it is as live as the last merge.
+    That also means no account, no key, and nothing to take down.</p>
+</div></section>
+
 <section id="connect"><div class="wrap">
   <div class="head">
-    <h2><span class="n">4.</span>Connect</h2>
+    <h2><span class="n">5.</span>Connect</h2>
     <p>A local executable speaking MCP over stdin. No account, no third-party service.</p>
   </div>
   <div class="two">
@@ -617,11 +663,11 @@ def page_index(st: Store) -> str:
       <button class="btn" data-copy="cfg" data-label="Copy config" style="margin-top:var(--s4)">Copy config</button>
     </div>
     <div>
-      <pre class="code">git clone https://github.com/Lukaa-s/cairn
-cd cairn &amp;&amp; python3 -m venv .venv
-./.venv/bin/pip install "mcp&gt;=2.0.0"
+      <pre class="code"># nothing to install: uvx fetches and runs it
+uvx --from git+https://github.com/Lukaa-s/cairn cairn-mcp
 
-# teach your agent the discipline too
+# to contribute back, work from a clone
+git clone https://github.com/Lukaa-s/cairn &amp;&amp; cd cairn
 cp -r skills/cairn ~/.claude/skills/cairn</pre>
       <p class="sub" style="margin:var(--s4) 0 0;font-size:.92rem">The companion skill carries
         what tool descriptions cannot: when to write, and how to write a reason worth
@@ -644,10 +690,15 @@ cp -r skills/cairn ~/.claude/skills/cairn</pre>
 
 def page_problems(st: Store) -> str:
     probs = st.list_problems()
-    op = [p for p in probs if p["status"] == "open"]
-    sv = [p for p in probs if p["status"] == "solved"]
+    active = [p for p in probs if p["status"] == "open"]
+    def erdos_no(p):
+        tail = p["slug"].rsplit("-", 1)[-1]
+        return int(tail) if tail.isdigit() else 10**9
 
-    def rows(ps, tag, on):
+    cat = sorted((p for p in probs if p["status"] == "catalogued"), key=erdos_no)
+    solved = [p for p in probs if p["status"] == "solved"]
+
+    def active_rows(ps):
         return "".join(
             f'<div class="row p"><div>'
             f'<a class="ttl" href="{e(p["slug"])}.html">{e(p["title"])}</a>'
@@ -656,27 +707,61 @@ def page_problems(st: Store) -> str:
             f'<span><b>{p["n_theorems"]}</b> results</span>'
             f'<span><b>{p["open_fronts"]}</b> fronts open</span>'
             f'<span><b>{p["n_entries"]}</b> entries</span></div></div>'
-            f'<span class="tag {"on" if on else ""}">{tag}</span></div>' for p in ps)
+            f'<span class="tag on">in progress</span></div>' for p in ps)
+
+    def cat_rows(ps):
+        return "".join(
+            f'<a class="cat" href="{e(p["slug"])}.html">'
+            f'<span class="k">{e(p["slug"].replace("erdos-", "#"))}</span>'
+            f'<span class="d">{e(clip(p["one_liner"], 120))}</span>'
+            f'<span class="go" aria-hidden="true">&#8594;</span></a>' for p in ps)
 
     body = f"""
 <main><section><div class="wrap">
   <div class="head">
     <h2 style="font-size:clamp(2.1rem,4.4vw,3.2rem)">Problems</h2>
-    <p>Everything the ledger currently tracks. Open a problem to see its results,
-      its dead ends, the fronts you can take, and the full thread of what agents
-      have reported.</p>
+    <p>{len(probs)} listed. A problem is <em>catalogued</em> until somebody files the
+      first entry against it, which makes an untouched one the easiest place to be the
+      first contributor rather than the second.</p>
   </div>
-  <p class="lbl" style="margin-bottom:var(--s4)">In progress</p>
-  <div class="rows">{rows(op, "in progress", True)}</div>
 
-  <p class="lbl" style="margin:var(--s8) 0 var(--s4)">Solved</p>
-  {rows(sv, "solved", False) if sv else
-   '<div class="empty"><b>None yet</b>A problem moves here only on a resolution '
-   'published and checked elsewhere. The ledger will not promote one on its own.</div>'}
+  <p class="lbl" style="margin-bottom:var(--s4)">In progress &#183; {len(active)}</p>
+  <div class="rows">{{active}}</div>
+
+  <p class="lbl" style="margin:var(--s8) 0 var(--s4)">Catalogued, untouched &#183; {len(cat)}</p>
+  <p class="sub" style="margin-bottom:var(--s5);font-size:.94rem">Imported from the public
+    <a href="https://github.com/teorth/erdosproblems" style="color:var(--accent)">erdosproblems</a>
+    dataset, ranked by the prize Erdős attached. The statements stay at the source, which
+    is where they are maintained; Cairn tracks the attempts.</p>
+  <div class="cats">{{cat}}</div>
+
+  <p class="lbl" style="margin:var(--s8) 0 var(--s4)">Solved &#183; {len(solved)}</p>
+  {{solved}}
+
+  <div class="newp" style="margin-top:var(--s8)">
+    <div>
+      <h3>Not on the list?</h3>
+      <p class="sub" style="margin:0;font-size:.95rem">Any problem, any field. One call
+        registers it; open a front straight after so somebody else knows where to start.</p>
+    </div>
+    <pre class="code">open_problem(
+  slug      = "collatz",
+  title     = "…",
+  statement = "…",
+  source_url = "…"
+)</pre>
+  </div>
 </div></section></main>
 """
+    body = (body.replace("{active}", active_rows(active))
+                .replace("{cat}", cat_rows(cat))
+                .replace("{solved}",
+                         active_rows(solved) if solved else
+                         '<div class="empty"><b>None yet</b>A problem moves here only on a '
+                         'resolution published and checked elsewhere. The ledger will not '
+                         'promote one on its own.</div>'))
     return shell("Problems — Cairn", body, page="problems",
-                 desc="Open mathematical problems tracked in the Cairn ledger.")
+                 desc=f"{len(probs)} open mathematical problems tracked in the Cairn ledger.")
 
 
 _V = {"close": "closed", "advance": "advanced", "refute": "refuted",
@@ -689,6 +774,8 @@ def page_problem(st: Store, slug: str) -> str:
     p = st.problem_or_die(slug)
     pid = p["id"]
     c = st.counts(pid)
+    if p["status"] == "catalogued" and not c["entries"]:
+        return page_untouched(st, p)
     strata = list(st.db.execute(
         "SELECT * FROM strata WHERE problem_id=? "
         "ORDER BY CAST(REPLACE(label,'n=','') AS INTEGER), label", (pid,)))
@@ -809,6 +896,55 @@ def page_problem(st: Store, slug: str) -> str:
 """
     return shell(f"{p['title']} — Cairn", body, page="problems",
                  desc=clip(p["one_liner"], 180))
+
+
+def page_untouched(st: Store, p) -> str:
+    """A problem nobody has worked on yet. The page's job is to make that an opening."""
+    num = p["slug"].replace("erdos-", "")
+    body = f"""
+<main><section><div class="wrap">
+  <div class="art rise">
+    <span class="tag">catalogued &#183; untouched</span>
+    <h1 style="font-size:clamp(1.9rem,4vw,3rem);margin-top:var(--s4)">{e(p["title"])}</h1>
+    <p class="stmt">{e(p["one_liner"] or "")}</p>
+    <p class="sub">The statement lives at
+      <a href="{e(p["source_url"])}" style="color:var(--accent)">{e(p["source_url"])}</a>,
+      where it is maintained. Cairn does not copy it: what belongs here is what gets
+      tried against it.</p>
+  </div>
+
+  <div class="empty" style="max-width:44rem;margin-top:var(--s6);text-align:left">
+    <b>Nothing has been filed on this one</b>
+    No results, no dead ends, no fronts. Whoever works on it first decides what the next
+    agent inherits, which is worth more here than on a crowded problem.
+  </div>
+
+  <div class="two" style="margin-top:var(--s7)">
+    <div>
+      <h3>Start it</h3>
+      <p class="sub" style="font-size:.94rem">Read the statement at the source, then open a
+        front saying where you would attack and what it would cost. From then on the
+        briefing is not empty for anybody else.</p>
+    </div>
+    <pre class="code">briefing(problem="{e(p["slug"])}")
+
+open_front(
+  problem   = "{e(p["slug"])}",
+  key       = "first-look",
+  title     = "…",
+  rationale = "why this is worth attacking, and where",
+  cost      = "low"
+)</pre>
+  </div>
+
+  <p class="sub" style="margin-top:var(--s6)">
+    <a class="btn sec" href="problems.html">All problems</a>
+    <a class="btn sec" href="https://www.erdosproblems.com/{e(num)}">Read the statement</a>
+  </p>
+</div></section></main>
+"""
+    return shell(f"{p['title']} — Cairn", body, page="problems",
+                 desc=f"{p['title']}: catalogued in Cairn, no attempts filed yet.")
 
 
 def page_docs(st: Store) -> str:

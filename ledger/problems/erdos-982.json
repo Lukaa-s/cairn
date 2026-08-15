@@ -1,0 +1,701 @@
+{
+  "slug": "erdos-982",
+  "title": "Erdős #982 — distances distinctes vues depuis un sommet d’un polygone convexe",
+  "statement": "Soit P ⊂ ℝ², |P| = n ≥ 3, en position convexe stricte ; pour x ∈ P on pose D(x) = |{ |xy| : y ∈ P privé de x }| et M(P) = max_x D(x). Conjecture d’Erdős (1946) : M(P) ≥ ⌊n/2⌋ — le quantificateur est ∃x, pas ∀x. La borne est serrée (le n-gone régulier donne D ≡ ⌊n/2⌋), et un contre-exemple est donc un n-gone convexe dont TOUT sommet voit ≤ K = ⌊n/2⌋ − 1 distances distinctes. Statut externe : ouvert ; Altman (1963) donne la version faible (nombre TOTAL de distances ≥ ⌊n/2⌋) et le record per-vertex est (13/36 + ε)n − O(1) avec ε ≈ 1/23000 (Nivasch–Pach–Pinchasi–Zerbib, arXiv:1207.1266), soit ≈ 0,361n contre 0,5n.",
+  "source_url": "https://www.erdosproblems.com/982",
+  "status": "open",
+  "one_liner": "Aucun contre-exemple n’existe pour n ≤ 13 (vérification exhaustive machine, sous réserve des deux derniers jobs en cours) ; toutes les familles structurées connues et leurs voisinages entiers sont exclus par des théorèmes ; le mécanisme central découvert — le comptage de classes bat la rigidité — réduit la mort d’une famille à un inventaire de racines élémentaire.",
+  "state_of_the_art": "Vérification exhaustive machine : n ≤ 11 entièrement clos (bi-moteur DFS + z3 ; n=10 UNSAT 3643 s avec preuve humanisable, n=11 UNSAT 3324 s), puis strates UNSAT par nombre k de sommets défectueux — n=12 k≤6 (2327 s), n=13 k≤4, n=14 k≤5 (30227 s), n=15 k≤4 (18374 s), n=16 k≤2 (CEGAR : UNSAT après 13 patterns bloqués, résidus ~0,2) ; le cas k=0 (tout-miroir) est réglé sur papier pour tout n (R28 + R18-complet). Le TUBE ENTIER de la famille alternée (gear G(t)), toute la fenêtre de convexité, tout k et tout placement de défauts, est vide par le Théorème G‴ (rayon δ₀ ≥ c/m², preuve autonome de ~4 pages), qui subsume G′, G″ et G″-arbitraire SANS aucune rigidité. Le méta-théorème « profils sur-budget » abstrait ce mécanisme et couvre aussi la famille F de période 4 (plancher antagoniste ≥ 5,3e-3 sur toute la boîte 3D, m=6..16, certifié mpmath dps=40) et les multiarcs (planchers ≥ 2,2e-2, n=13..21). L’univers symétrique entier est classé mort (cocirculaire R9, chiral, k≥3 rayons, engrenages k=2 : 46 coïncidences de Galois inventoriées à 60 chiffres, aucune dans la fenêtre convexe), et la récursion 2-adique est stoppée au niveau 2 (aucune bifurcation de {miroirs d’une parité} sur F pour m=8/12/16, σ₈/σ₁ ≥ 0,21). Restent vivants : n=12 k=6 et n=13 k=5 (tenailles en cours), et surtout le « milieu sans structure » (n ≥ 14, n/9 < k < n−o(n)), où aucune chasse n’a jamais trouvé d’optimum local convexe — les descentes sortent toujours de la convexité. La reformulation unifiante du 12/08 concentre le programme sur UN énoncé extrémal fini-combinatoire : B(P) = E(P) − C(n,2) ≤ n/2 pour tout convexe ⟹ 982 avec marge n, extrémal identifié (gear fusionné G(t♯), B = +n/2) et cas local démontré (Théorème B-tube).",
+  "honest_estimate": "La conjecture est très probablement vraie (marge divergente n^2,5 mesurée, R40) ; la preuve complète pour tout n exige une idée globale au-delà de ce rapport (~10 % dans cette campagne) ; la valeur consolidée — vérification n ≤ 13, G‴, méta-théorème, classification — est indépendante de cette issue.",
+  "fronts": [
+    {
+      "key": "e-max-isoceles",
+      "title": "★★★ E_max isocèles convexes",
+      "rationale": "Prouver (ou réfuter machine) E ≤ n²/2 + n − 1 en position convexe ⟹ 982. Étapes : (a) isomax2 — maximiser E adouci pour n=8..14, extraire les quasi-extrémaux ; (b) chercher la structure des configurations > n²/2 si elles existent ; (c) preuve par capacité fine des médiatrices (crossing + auto-référence) ou par configurations interdites.",
+      "cost": "high",
+      "gain": "LA cible extrémale propre : un énoncé purement extrémal, sans mention de « distinct », avec extrémal déjà identifié au seuil (G(t*) atteint exactement n²/2) — s’il tombe, Erdős 982 tombe.",
+      "status": "open",
+      "priority": 1,
+      "closed_reason": null,
+      "closed_at": null
+    },
+    {
+      "key": "deficit-total",
+      "title": "★★ Conjecture du DÉFICIT TOTAL (idée neuve, cible globale)",
+      "rationale": "Σ_p c_p ≤ nm − 1 pour tout convexe ⟹ 982 (version moyennée + intégralité). La forme forte n(m−1) est RÉFUTÉE à la main (G(t*) fait nm − m) ; conjecture raffinée : plafond nm − m, extrémal G(t*), marge m − 1. Machine : isomax.py (n=8..12) pour mesurer le plafond et extraire les quasi-extrémaux ; puis preuve « déficit ≥ 1 » via l’arsenal (isocèles convexes + collapse local).",
+      "cost": "medium",
+      "gain": "Une reformulation moyennée de 982 avec marge m − 1 : il suffirait de prouver que le déficit total est ≥ 1.",
+      "status": "open",
+      "priority": 2,
+      "closed_reason": null,
+      "closed_at": null
+    },
+    {
+      "key": "meta-q-fusions-certification-f",
+      "title": "Méta-théorème q-fusions + certification F",
+      "rationale": "Raffiner le méta-théorème aux types à N > K+1 (critère = q-ième gap, q = N − K — c’est déjà le B de F_scan) ; puis CERTIFIER le plancher F par branch-and-bound à intervalles (borne de Lipschitz explicite de kill sur la boîte + subdivision adaptative) plutôt que par inventaire de quadriques — moins élégant, rigoureux, automatisable. Lancer quand un slot CPU se libère (après les tenailles).",
+      "cost": "medium",
+      "gain": "Transforme le plancher numérique de la famille F en certificat rigoureux et automatisable, et généralise le méta-théorème aux sommets muets.",
+      "status": "open",
+      "priority": 3,
+      "closed_reason": null,
+      "closed_at": null
+    },
+    {
+      "key": "tenaille-n12-n13",
+      "title": "Tenaille n=12 k≥7 / n=13 k≥5",
+      "rationale": "Jobs 4150397 / 4150398, >10 h CPU. Si UNSAT, alors n=12 et n=13 sont ENTIÈREMENT clos (échelle basse UNSAT ∪ strate haute UNSAT). Relever uniquement si le log est non vide.",
+      "cost": "low",
+      "gain": "Clôture complète de n=12 et n=13 — la vérification exhaustive passerait à n ≤ 13 sans réserve.",
+      "status": "open",
+      "priority": 4,
+      "closed_reason": null,
+      "closed_at": null
+    },
+    {
+      "key": "g3-multiarcs",
+      "title": "G‴ pour les multiarcs",
+      "rationale": "Appliquer la méthode comptage + inventaire de gaps aux familles k-arcs (le Théorème E repose sur des planchers NUMÉRIQUES à n=15/17/19) : les profils des sommets d’un multiarc sont des classes explicites par arc ; si l’inventaire des racines est fini et jamais simultané entre types de sommets, alors Théorème E analytique pour tout n, et peut-être k > n/9.",
+      "cost": "medium",
+      "gain": "Front multiarc définitif : remplace des planchers numériques par un théorème analytique et pourrait relever la constante k ≤ n/9.",
+      "status": "open",
+      "priority": 5,
+      "closed_reason": null,
+      "closed_at": null
+    },
+    {
+      "key": "zero-miroir-z2",
+      "title": "Zéro-miroir (z2)",
+      "rationale": "Graphe biparti sommets ↔ médiatrices, degré ≤ 2 côté médiatrices ; chercher une obstruction de comptage / de parité. Acquis : chaque fusion en i met i sur la médiatrice M(a,b) ; une droite coupe un convexe en ≤ 2 sommets ⟹ chaque médiatrice sert ≤ 2 sommets ⟹ ≈ n médiatrices distinctes mobilisées ; si i et j partagent la même médiatrice, (a,b) sont symétriques par rapport à la droite (ij) — structure de paires réfléchies.",
+      "cost": "medium",
+      "gain": "Le régime zéro-miroir (≤ 3 sains, k ≥ n−3) est le dernier réduit de la chaîne « ≥ 4 sains ⟹ famille ». Capacité brute : 2·C(n,2) = n(n−1) contre besoin nm ≈ n²/2 — facteur 2 de mou à combler.",
+      "status": "open",
+      "priority": 6,
+      "closed_reason": null,
+      "closed_at": null
+    },
+    {
+      "key": "conjecture-variationnelle",
+      "title": "Conjecture variationnelle",
+      "rationale": "Le régulier est le minimum global du coût de collapse (ancre démontrée : π⁴/6n³) ; attaque par symétrisation. Attention : la symétrisation NAÏVE est déjà réfutée machine (5/5 chemins non monotones, pire remontée 1,4e-2).",
+      "cost": "high",
+      "gain": "La conjecture entière : si le régulier minimise globalement le coût de collapse, le plancher est > 0 pour tout n et Erdős 982 est prouvée.",
+      "status": "open",
+      "priority": 7,
+      "closed_reason": null,
+      "closed_at": null
+    },
+    {
+      "key": "lemme-l2-cascade",
+      "title": "Lemme(L=2) exact — finir la cascade",
+      "rationale": "X3 fait (facteur (10,8,4)²), X4/X5 relancés (block2_resume.log, sympy lourd) ; ensuite résultants X3 ∧ X4 ∧ X5 en (u,v,γ), inventaire des racines, exclusion des non-régulières (comme pour L=1). À reprendre en élimination MODULAIRE (évaluation-interpolation) quand la machine respire — pas de relance brute (X4 est mort à l’expand sympy, OOM probable). Relever seulement si le log bouge.",
+      "cost": "high",
+      "gain": "Blocs de 2 défauts morts EXACTEMENT ⟹ la constante du Théorème E monte (k ≤ n/5 en vue).",
+      "status": "open",
+      "priority": 8,
+      "closed_reason": null,
+      "closed_at": null
+    },
+    {
+      "key": "tenailles-n14-n15",
+      "title": "Tenailles n=14 k≥6 / n=15 k≥5",
+      "rationale": "Lancées le 14/08 (3 cœurs libérés). Si UNSAT : n=14 et n=15 ENTIÈREMENT clos. Relever si les logs sont non vides.",
+      "cost": "low",
+      "gain": "Clôture complète de n=14 et n=15 — la vérification exhaustive passerait à n ≤ 15.",
+      "status": "open",
+      "priority": 9,
+      "closed_reason": null,
+      "closed_at": null
+    },
+    {
+      "key": "hybride-comptage-general",
+      "title": "Hybride comptage × général",
+      "rationale": "La suite des distances depuis un sommet convexe a R_p runs monotones ⟹ D_p ≥ (n−1)/R_p ; borner Σ R_p par la géométrie (croisements cercle-courbe, courbure) et pigeonholer. C’est la route du record (13/36) — chercher si le ledger G‴ (coïncidences = médiatrices, capacité 2 par droite en position convexe) donne un GAIN sur les configurations à runs élevés. Coût : réflexion pure.",
+      "cost": "low",
+      "gain": "Un gain per-vertex CONSTANT sur le record (13/36 + ε)n — le seul front qui viserait la littérature externe plutôt que la clôture par familles.",
+      "status": "open",
+      "priority": 10,
+      "closed_reason": null,
+      "closed_at": null
+    },
+    {
+      "key": "ledger-n14-direct",
+      "title": "Ledger n=14 direct",
+      "rationale": "Encoder en z3 la version « comptage » pure (chaque sommet ≥ m coïncidences, capacité des médiatrices) SANS structure miroir : si l’encodage est plus petit que les strates, il pourrait clore n=14 tout k d’un coup. Évaluer d’abord la taille (réflexion), coder ensuite.",
+      "cost": "medium",
+      "gain": "Clôture de n=14 pour TOUT k en un seul job, au lieu de la montée par strates.",
+      "status": "open",
+      "priority": 11,
+      "closed_reason": null,
+      "closed_at": null
+    },
+    {
+      "key": "rang-4-global",
+      "title": "Rang-4 global (idée neuve, R32 sans symétrie)",
+      "rationale": "Les lignes de D² vivent dans span{1, a, x, y} (EDM planaire) ⟹ 982 équivaut à « n points convexes, chacun sur ≥ m des médiatrices qu’ils définissent » (auto-référence) ; classifier les 4-sous-espaces dont n vecteurs générateurs ont ≥ m égalités de coordonnées. Le rang ≤ 3 = cocirculaire = R9, déjà fait ; le cran rang 4 est LA frontière. Évaluer puis prototyper à petit n.",
+      "cost": "high",
+      "gain": "Un encodage matriciel (SDP + combinatoire) qui pourrait battre les strates z3 sur leur propre terrain.",
+      "status": "open",
+      "priority": 12,
+      "closed_reason": null,
+      "closed_at": null
+    },
+    {
+      "key": "certificat-sos",
+      "title": "Certificat SOS par n (idée neuve)",
+      "rationale": "Positivstellensatz pour « tout sommet voit ≤ m−1 distances distinctes » infaisable à n fixé (n=14) — un certificat algébrique dont la STRUCTURE pourrait s’induire en n. Lourd ; prototype après I_max.",
+      "cost": "high",
+      "gain": "Un certificat algébrique inductible en n serait une voie de preuve pour tout n, pas seulement une clôture par n fini.",
+      "status": "open",
+      "priority": 13,
+      "closed_reason": null,
+      "closed_at": null
+    },
+    {
+      "key": "redaction-g-prime-parite",
+      "title": "Rédaction G′-PARITÉ (n ≡ 2 mod 4)",
+      "rationale": "Rédiger le voisinage de la famille alternée quand toute une parité est défectueuse (k = n/2), cas m impair.",
+      "cost": "high",
+      "gain": "Le voisinage de la famille alternée clos pour k = n/2 à n ≡ 2 mod 4.",
+      "status": "closed",
+      "priority": 14,
+      "closed_reason": "FAIT — section THÉORÈME G″ écrite dans notes.md ; la brique (3) est rendue analytique : γ(m) = 2π²/m² + O(m⁻⁴), goulot exact à la paire (m−2, m−1), sympy + dps=40 jusqu’à m ≤ 61.",
+      "closed_at": "2026-08-11"
+    },
+    {
+      "key": "sigma6-modal",
+      "title": "σ₆ modal",
+      "rationale": "Rendre analytique la brique (1) de G″ (rigidité : minoration de la plus petite valeur singulière du système {miroirs d’une parité}).",
+      "cost": "high",
+      "gain": "G″ pour n ≡ 2 mod 4 démontré sans maillon numérique.",
+      "status": "closed",
+      "priority": 15,
+      "closed_reason": "FAIT — minoration analytique COMPLÈTE par les règles de sommation C_e/C_o (aliasing demi-réseau) : λ_min(Gram) = m/4 EXACT en générique ; (m/4)·λ₀ à ν=2 avec λ₀ plus petite racine de λ³ − 11λ² + 28λ − 16 = 0,81046598 ⟹ σ = 1,2732√m ; bloc mou ∝ (t−1) — G″ n ≡ 2 mod 4 démontré modulo rédaction.",
+      "closed_at": "2026-08-11"
+    },
+    {
+      "key": "redaction-ligne-a-ligne-g2",
+      "title": "Rédaction ligne-à-ligne G″",
+      "rationale": "Écrire les deux pièces restantes de G″ : (A) preuve des règles de sommation C_e/C_o, (B) assemblage ε–δ des trois zones.",
+      "cost": "medium",
+      "gain": "G″ rédigé ligne à ligne, prêt à publier.",
+      "status": "closed",
+      "priority": 16,
+      "closed_reason": "FAIT — pièces (A) règles de sommation et (B) assemblage écrites dans notes.md ; résidu : la constante de courbure C₆ explicite.",
+      "closed_at": "2026-08-11"
+    },
+    {
+      "key": "m-pair-memes-blocs",
+      "title": "m PAIR via les mêmes blocs",
+      "rationale": "Étendre la machinerie modale de G″ au cas m pair (n ≡ 0 mod 4), où la brique (1) échoue.",
+      "cost": "medium",
+      "gain": "Rigidité transverse à la famille F rendue analytique, ce qui réduit rigoureusement le cas n ≡ 0 mod 4 au balayage de F.",
+      "status": "closed",
+      "priority": 17,
+      "closed_reason": "FAIT — 3 lois exactes pour m pair (λ_min = m/4 générique ; (m/4)λ₀ à ν = 2, m−2 avec la MÊME cubique ; (5−√5)m/8 à ν = m/2 ± 1, le nombre d’or ; noyau double exactement à ν = m/2 = la tangente de F), σ⊥ ≥ 1,27√m, la variété {miroirs d’une parité} EST F localement. Restait alors le verdict F_scan2 (m=8..16).",
+      "closed_at": "2026-08-11"
+    },
+    {
+      "key": "g2-arbitraire-redaction",
+      "title": "G″-ARBITRAIRE, rédaction",
+      "rationale": "Étendre G″ à k ≤ n/2 défauts de placement QUELCONQUE, via l’épinglage par 5 sains d’une parité.",
+      "cost": "high",
+      "gain": "Le voisinage de la famille alternée vide pour tout k ≤ n/2 et tout placement.",
+      "status": "closed",
+      "priority": 18,
+      "closed_reason": "CLOSE — SUBSUMÉE par le THÉORÈME G‴ : comptage par sommet + plancher biparité des gaps (racines t* et 1/t* jamais simultanées, γ₀m² → π²/4) ⟹ le tube gear ENTIER est vide, tout k, tout placement, SANS rigidité. La théorie pinch est archivée (s* = 5 universel, cosets, creux t★(Q) transverses à la fusion).",
+      "closed_at": "2026-08-12"
+    },
+    {
+      "key": "meta-comptage-tour-2-adique",
+      "title": "Méta-comptage sur la tour 2-adique",
+      "rationale": "Chercher s’il existe un niveau 3 de la récursion 2-adique, c’est-à-dire une bifurcation de la variété {miroirs d’une parité} le long de la famille F.",
+      "cost": "medium",
+      "gain": "Réduire à néant le « BOSS tour » côté miroir (R18-pour-tours devenait inutile si la récursion s’arrête).",
+      "status": "closed",
+      "priority": 19,
+      "closed_reason": "FAIT — AUCUNE bifurcation sur F pour m = 8, 12 et 16 (min σ₈/σ₁ ≥ 0,21 après polissage antagoniste ; 0,271 à m=12 ; mode le plus mou = fréquence m/4, jamais nul) ⟹ récursion 2-adique STOPPÉE au niveau 2 ; formulation consignée dans notes.md.",
+      "closed_at": "2026-08-14"
+    },
+    {
+      "key": "redaction-g3-analytique",
+      "title": "Rédaction G‴ analytique",
+      "rationale": "Rédiger de bout en bout la preuve autonome de G‴ : dualité t ↦ 1/t, racines t*/t**, lemme « aucune racine mixte », planchers d’équi-espacement, assemblage γ₀ ≥ c₀/m².",
+      "cost": "high",
+      "gain": "Le front « famille alternée » fermé par une preuve autonome de ~4 pages, sans aucune rigidité.",
+      "status": "closed",
+      "priority": 20,
+      "closed_reason": "CLOSE — TOUT PROUVÉ ET RÉDIGÉ (section « G‴ — PREUVE AUTONOME RÉDIGÉE » : cadre, Lemme 1, Props 2–4 avec constantes chassées, γ₀ ≥ 2/m² pour m ≥ 5 ; m = 3,4 soit n ≤ 8 réglés machine). Vérifications : gaps_scan m=7..41 impair et 8..24 pair, gaps_exact/2 en sympy exact.",
+      "closed_at": "2026-08-12"
+    },
+    {
+      "key": "comptage-strates-z3",
+      "title": "Comptage sur les strates z3",
+      "rationale": "Injecter le mécanisme de comptage de G‴ dans l’encodage z3 des strates pour accélérer les tenailles.",
+      "cost": "low",
+      "gain": "Aurait accéléré les verdicts machine si le goulot avait été les contraintes.",
+      "status": "closed",
+      "priority": 21,
+      "closed_reason": "ÉVALUÉE ET REJETÉE — G‴ est MÉTRIQUE, pas combinatoire, donc intransportable dans l’encodage ; et l’encodage z3 est déjà efficace (n=15 k≤3 en 1241 s à pleine CPU). Le goulot des tenailles est la FAMINE MACHINE (~30 % d’un cœur, load 46/4), pas les contraintes. Rien à gagner.",
+      "closed_at": "2026-08-12"
+    },
+    {
+      "key": "meta-theoreme-profils-racines-finies",
+      "title": "Méta-théorème « profils à racines finies »",
+      "rationale": "Abstraire le mécanisme de G‴ en un théorème général applicable à n’importe quelle famille continue.",
+      "cost": "low",
+      "gain": "Un outil réutilisable : la mort d’une famille se réduit à vérifier que les hypersurfaces de fusion des différents types de sommets ne se rencontrent pas.",
+      "status": "closed",
+      "priority": 22,
+      "closed_reason": "FAIT — énoncé + preuve (L1) écrits dans notes.md, avec les instances gear (= G‴) et F (= F_scan avant la lettre) ; la version « q fusions » a été déléguée à la ligne multiarcs / à la ligne certification F.",
+      "closed_at": "2026-08-12"
+    },
+    {
+      "key": "temoin-sat-n16-cegar",
+      "title": "★ Témoin SAT n=16 k=2 : extraire + CEGAR",
+      "rationale": "n=16 k≤2 est SAT combinatoire (834 s puis 24105 s, deux encodages) et le témoin n’avait jamais été extrait : monter un pipeline CEGAR (extraction du pattern → tentative de réalisation convexe → candidat, ou blocage du pattern et de ses 2n images diédrales → re-check).",
+      "cost": "medium",
+      "gain": "Soit un CANDIDAT de contre-exemple, soit la clôture de la strate n=16 k≤2.",
+      "status": "closed",
+      "priority": 23,
+      "closed_reason": "FAIT — UNSAT après 13 patterns bloqués (résidus de réalisation ~0,2 : massivement irréalisables) : aucun candidat, strate n=16 k≤2 close modulo 13 cas finis battus numériquement.",
+      "closed_at": "2026-08-14"
+    },
+    {
+      "key": "cartographie-voisinages-exclus",
+      "title": "Cartographie des voisinages exclus",
+      "rationale": "Consolider par écrit quelles zones de l’univers des n-gones convexes sont mortes par preuve, et où un contre-exemple peut encore se cacher.",
+      "cost": "low",
+      "gain": "Une carte des zones mortes / vivantes qui oriente le choix des fronts suivants.",
+      "status": "closed",
+      "priority": 24,
+      "closed_reason": "FAIT — section CARTOGRAPHIE dans notes.md : 5 zones mortes prouvées, fronts vivants A/B/C, inventaire des strates rectifié (n=14 k≤4, n=12 k≤6).",
+      "closed_at": "2026-08-12"
+    },
+    {
+      "key": "f-scan-verdict",
+      "title": "F_scan verdict",
+      "rationale": "Balayage antagoniste 3D de la boîte entière de la famille F (période 4, n ≡ 0 mod 4) : kill = max(A, B)/diam² avec A le min-gap de paires sur les 2 classes saines et B la q-ième lacune des muets.",
+      "cost": "medium",
+      "gain": "Famille F ENTIÈRE close ⟹ item (ii) de la clôture n ≡ 0 mod 4.",
+      "status": "closed",
+      "priority": 25,
+      "closed_reason": "FAIT — plancher > 0 pour TOUT m = 6..16 (minimum 5,3e-3 à m=16 ; points propres avec N ≥ 10, A = B aux argmins, garde anti-collapse active) ⟹ famille F entière close.",
+      "closed_at": "2026-08-11"
+    },
+    {
+      "key": "f-certify40-verdict",
+      "title": "F_certify40 verdict",
+      "rationale": "Certifier les planchers de la famille F en précision étendue : volet 1 (re-polissage des argmins), volet 2 (grille 64³, ratios), volet 3 (60 voisins à dps=40).",
+      "cost": "medium",
+      "gain": "Clôture m pair rendue solide : les planchers F cessent d’être un simple résultat d’optimisation flottante.",
+      "status": "closed",
+      "priority": 26,
+      "closed_reason": "FAIT — volets 1 (corrigé par re-polissage), 2 (grille 64³, ratios 0,98–1,00, aucun bassin manqué) et 3 (60 voisins dps=40) TOUS OK ⟹ planchers F certifiés.",
+      "closed_at": "2026-08-14"
+    },
+    {
+      "key": "echelles-machine",
+      "title": "Échelles machine",
+      "rationale": "Monter les strates basses par nombre k de défauts sur n=14 et n=15, et poursuivre la chasse t* à n=16/20.",
+      "cost": "low",
+      "gain": "Des théorèmes partiels autonomes (« pas de contre-exemple à ≤ k défauts pour ce n ») et le repérage du premier k où la strate devient dure.",
+      "status": "closed",
+      "priority": 27,
+      "closed_reason": "FAIT — n=14 k≤5 UNSAT (30227 s), n=15 k≤4 UNSAT (18374 s), chasse t* n=16/20 close (rien de convexe). Remplacée par la ligne « tenailles n=14 k≥6 / n=15 k≥5 », lancées.",
+      "closed_at": "2026-08-14"
+    },
+    {
+      "key": "tour-2-adique",
+      "title": "Tour 2-adique",
+      "rationale": "Traiter la famille tour (récursion G(2) → G(4) → …) comme un front séparé.",
+      "cost": "low",
+      "gain": "Aurait fermé le « BOSS tour » identifié par R31/R32.",
+      "status": "closed",
+      "priority": 28,
+      "closed_reason": "FUSIONNÉE avec « Méta-comptage tour 2-adique » (bifurcations : m=8 AUCUNE, m=12/16 alors en cours) ; la variante G(4) à ρ₁ ≠ ρ₃ (demi-miroir) relève du front strates, pas de la tour miroir.",
+      "closed_at": "2026-08-12"
+    },
+    {
+      "key": "rapport-de-campagne",
+      "title": "Rapport de campagne (socle publiable)",
+      "rationale": "Écrire un document autonome consolidant la campagne, qui survive à la session.",
+      "cost": "medium",
+      "gain": "Un socle publiable indépendant de l’issue de la conjecture.",
+      "status": "closed",
+      "priority": 29,
+      "closed_reason": "FAIT — RAPPORT.md écrit : 6 sections (vérification n ≤ 13, G‴, méta-théorème, classification des familles, méthode, fronts restants) + estimation honnête (~10 % de conclure sans idée globale nouvelle).",
+      "closed_at": "2026-08-12"
+    }
+  ],
+  "results": [
+    {
+      "key": "b-tube",
+      "name": "Théorème B-tube (corollaire de G‴)",
+      "statement": "Pour P à distance δ < γ₀/16 d’un gear G(t) : toute coïncidence exacte de P force la paire de classes correspondante du gear sous 4δ·diam² < γ₀/2 ; l’inventaire (Props 2–4 de G‴) n’autorise qu’UNE lacune sous ce seuil — une seule fusion, une seule parité, jamais deux — donc c_p(P) ≤ c_p(G) + 1[parité fusionnée], d’où Σ_p c_p ≤ n(m−1) + m et B(P) ≤ n/2 dans tout le tube gear, avec égalité ssi type G(t♯).",
+      "status": "proved",
+      "proof_location": "notes.md § THÉORÈME B-TUBE ; RAPPORT.md §7",
+      "scope": "tube de la famille alternée uniquement — c’est le cas local démontré de la conjecture globale B ≤ n/2"
+    },
+    {
+      "key": "conj-variationnelle",
+      "name": "Conjecture variationnelle unificatrice",
+      "statement": "Le polygone RÉGULIER minimise globalement le coût de collapse normalisé (somme des kmeans-K par sommet divisée par diam²). Ancre DÉMONTRÉE (identité exacte, kmeans vérifié ratio 1,0000 pour n=16..64) : coût(rég) = (n/4)·(2/3)(2(1−cos(π/n)))² = π⁴/(6n³)(1+o(1)) = 16,235/n³. Correction de R33 : le déficit est Θ(1/n³), PAS Θ(1/n²) (la constante historique 20/n³ portait un biais de pipeline ~×1,23). Si démontrée ⟹ Erdős 982 entière.",
+      "status": "conjectured",
+      "proof_location": "notes.md § CONJECTURE VARIATIONNELLE UNIFICATRICE (ancre démontrée) ; support indirect hunt3",
+      "scope": "toutes les données convergent : optima bi-parité = régulier exact, famille tour ≈ régulier, familles bireg/multiarc AU régulier, boule G vide, hunt3 : 0 optimum local convexe sur 75 restarts (n=12/14/16), coûts(rég) mesurés 9,29/5,87/3,94 e-3 contre l’identité 9,39/5,92/3,96. La symétrisation naïve est RÉFUTÉE comme voie d’attaque (5/5 chemins non monotones)"
+    },
+    {
+      "key": "deficit-total",
+      "name": "Conjecture du déficit total",
+      "statement": "Avec c_p := (n−1) − D_p (coïncidences) et n = 2m : Σ(n) := max sur les convexes de Σ_p c_p ≤ nm − 1 ⟹ 982 (version moyennée + intégralité). La forme forte Σ = n(m−1) est RÉFUTÉE à la main : G(t*) fait nm − m (parité fusionnée c = m, parité muette c = m−1). Conjecture raffinée : Σ(n) = nm − m, extrémal G(t*), marge m − 1 — il SUFFIT de prouver « déficit total ≥ 1 ».",
+      "status": "conjectured",
+      "proof_location": "notes.md § CONJECTURE DU DÉFICIT TOTAL (12/08) ; affûtage § CONJECTURE « MOITIÉ SATURÉE » ; NEXT.md (★★)",
+      "scope": "n = 2m ; machine isomax.py n=8..12. Affûtage « moitié saturée » : G(t*) sature exactement n/2 sommets, conjecture que jamais plus de n/2 sommets ne sont saturés (c_p ≥ m) ⟹ 982 avec marge"
+    },
+    {
+      "key": "e-max",
+      "name": "E_max isocèles convexes",
+      "statement": "E_max^convexe(n) ≤ n²/2 + n − 1 ⟹ Erdős 982 — énoncé extrémal PUR (plus aucune mention de « distinct »), avec extrémal connu au seuil : régulier E = n(m−1) = n²/2 − n ; G(t*) : m(m+1) + m(m−1) = 2m² = n²/2 EXACTEMENT ; contre-exemple E ≥ n(m+1) = n²/2 + n. La convexité est ESSENTIELLE (le centre d’un cercle dans l’ensemble donnerait C(n−1,2) d’un coup — interdit en position convexe).",
+      "status": "conjectured",
+      "proof_location": "notes.md § RÉDUCTION « ISOCÈLES PAR APEX » (12/08) ; NEXT.md (★★★)",
+      "scope": "cible extrémale propre ; chaque isocèle (p, {i,j}) équivaut à p sur la médiatrice ℓ_ij, donc E = incidences sommets × médiatrices avec multiplicité ; capacité brute 2·C(n,2) = n² − n ⟹ facteur ~2 de mou, la vérité conjecturée est n²/2 + O(n)"
+    },
+    {
+      "key": "ext-parite-agnostique-d",
+      "name": "Extension « parité-agnostique » du Théorème D",
+      "statement": "FAUSSE, détectée par mirror_M4 : pour n PAIR, w = 2 (2-cordes égales) ne donne les angles constants que PAR PARITÉ le long d’un arc ; le polygone ÉQUILATÉRAL À ANGLES ALTERNÉS (période 2 = gear G(2, n/2)) a TOUS ses sommets totalement miroir, D_i = n/2 = K+1 partout, sans être régulier — contre-exemples numériques exacts (résidu 1e-31, défaut axial 1e-15, dist_reg 0,013–0,018).",
+      "status": "refuted",
+      "proof_location": "notes.md § MORT — EXTENSION « PARITÉ-AGNOSTIQUE » DU THÉORÈME D",
+      "scope": "conséquences : D vaut pour n IMPAIR tel que rédigé ; pour n pair la conclusion devient « régulier OU alterné », l’alterné mourant par la voie gear (R18-complet) ; la mise à mort du témoin n=16 k≤2 a dû être REFAITE sur la famille alternée ; même correction pour E à n pair"
+    },
+    {
+      "key": "g",
+      "name": "Théorème G — le voisinage du régulier est inconditionnellement vide",
+      "statement": "Soit P convexe à n sommets avec δ := max_i |V_i − V_i^rég|/diam < ½ sin(π/2n) sin(π/n) ≈ π²/2n² (après le meilleur recalage similitude). Alors un sommet de P voit ≥ ⌊n/2⌋ distances distinctes : aucun contre-exemple dans cette boule, SANS aucune hypothèse sur le nombre k de défauts. Preuve en 10 lignes : distances 2-Lipschitz en δ + gaps de cordes ≥ 2 sin(π/2n) sin(π/n) ⟹ les seules fusions possibles sont les paires miroir ±w ⟹ ≥ (n−1)/2 (n impair) ou n/2 (n pair, antipode singleton) classes > K.",
+      "status": "proved",
+      "proof_location": "notes.md § THÉORÈME G — le voisinage du régulier est inconditionnellement vide",
+      "scope": "tout n, tout k — rend la clause « loin du régulier » INCONDITIONNELLE dans la réduction finale : tout contre-exemple vérifie δ ≥ π²/2n² (1+o(1))"
+    },
+    {
+      "key": "g1",
+      "name": "Théorème G′ — le voisinage de la famille alternée est vide (n pair)",
+      "statement": "Le voisinage de la famille ALTERNÉE est vide de contre-exemples : σ_min = √(n/2) EXACT (2,449/2,828/3,162/3,464/4,000 pour n=12/16/20/24/32), noyau de dimension 5 exact (2 translations, rotation, dilatation, paramètre t), + Lemme H + gaps du gear. Réparation par parité (découverte par calcul) : pour tout t de la fenêtre FERMÉE, max sur les deux parités du gap minimal ≥ π²/4m² — c’est le gap antipodal du régulier 2(1 − cos(π/2m)), mesuré 0,0682/0,0384/0,0246/0,0171/0,0096 pour m=6..16, soit 2,46/m² à 0,3 %.",
+      "status": "proved",
+      "proof_location": "notes.md § THÉORÈME G′ — le voisinage de la famille alternée est vide (n pair)",
+      "scope": "démontré sur compacts de la fenêtre, bord inclus après la réparation par parité ; version G′-défauts mesurée jusqu’à k = n/2 (noyau 7 seulement) ; subsumé par G‴"
+    },
+    {
+      "key": "g2",
+      "name": "Théorème G″ — parité muette (k = n/2), dichotomie mod 4",
+      "statement": "Pour n = 2m avec m IMPAIR (n ≡ 2 mod 4) : il existe δ(m) > 0 tel qu’aucun contre-exemple n’est à distance < δ(m) de la famille gear {G(t)}, même avec TOUTE la parité opposée défectueuse (k = n/2). Trois briques : (1) rigidité — noyau du système {miroirs d’une parité} de dimension exactement 5, σ_min ≥ 1,27√m hors bloc mou, bloc mou ∝ (t−1) ; (2) fusion saine ⟹ racine R18 simple unique t* = 2cos(π/2m) − 1 (ou 1/t*) ; (3) gap muet γ(m) = 2π²/m² + O(m⁻⁴), goulot exact à la paire (m−2, m−1).",
+      "status": "proved",
+      "proof_location": "notes.md § THÉORÈME G″ — PARITÉ MUETTE, DICHOTOMIE MOD 4 ; § G″ — RÉDACTION DES DEUX PIÈCES RESTANTES (A) règles C_e/C_o, (B) assemblage",
+      "scope": "n ≡ 2 mod 4 : démontré modulo rédaction, toutes les constantes en forme close (λ_min = m/4 générique ; (m/4)·0,81046598 à ν=2, racine de λ³−11λ²+28λ−16). m PAIR : la brique (1) échoue EXACTEMENT (noyau 7), la variété {miroirs d’une parité} est la famille F, close par F_scan2. Subsumé par G‴ pour le tube gear"
+    },
+    {
+      "key": "g3",
+      "name": "Théorème G‴ — tube de la famille alternée (tout k, tout placement)",
+      "statement": "Pour n = 2m ≥ 10, il existe δ₀(m) ≥ c/m² tel qu’aucun contre-exemple n’est à distance normalisée ≤ δ₀ (jauges de similitude quotientées) d’un gear G(t) — rayons alternés 1 et t, angles π/m — pour AUCUN t de la fenêtre de convexité [cos(π/m), sec(π/m)]. Preuve en 2 lemmes : (L1) comptage par sommet — 2m−1 distances² dans m groupes γ-séparés ⟹ D ≥ m > K, aucune structure supposée (3 lignes) ; (L2) plancher biparité des gaps — γ₀(m) = min_t max(gap_pair, gap_impair), γ₀ m² croît de 2,238 (m=7) à 2,461 (m=41) → π²/4.",
+      "status": "proved",
+      "proof_location": "notes.md § « G‴ — PREUVE AUTONOME RÉDIGÉE » (Cadre, Lemme 1, Props 2–4) ; § G‴ — LEMME « AUCUNE RACINE MIXTE » ; RAPPORT.md §2",
+      "scope": "tout k, tout placement de défauts, toute la fenêtre de convexité, tout n = 2m ≥ 10 (m = 3,4 soit n ≤ 8 réglés machine) ; subsume et rend obsolètes G′, G″, G″-arbitraire et la rigidité modale σ₆/courbure pour ce voisinage"
+    },
+    {
+      "key": "invariant-b",
+      "name": "Invariant B — conjecture B(P) ≤ n/2 (le programme unifié)",
+      "statement": "Avec E(P) = nombre de triangles isocèles comptés par apex (Σ_p Σ_classes C(μ,2)) et B(P) = E − C(n,2) : si B(P) ≤ n/2 pour TOUT convexe alors Erdős 982, avec marge n — car un contre-exemple force chaque sommet au motif ≥ (3, 2^{m−2}), donc E ≥ n(m+1) et B ≥ 3n/2. Calibration exacte : régulier B = −n/2 ; gear fusionné G(t♯) B = +n/2 (l’extrémal conjecturé) ; famille F et cocirculaires périodiques B ≪ 0 (argmins F : −30 à −120 ; cocirculaires : −18 à −156).",
+      "status": "conjectured",
+      "proof_location": "RAPPORT.md §7 ; notes.md § RÉDUCTION « ISOCÈLES PAR APEX » et § THÉORÈME B-TUBE ; calibration machine ebench.py, sondes isomax.py",
+      "scope": "prouvé dans le tube gear (Théorème B-tube) ; premier assaut antagoniste machine tenu le 14/08 (isomax n=8/10/12 : le plafond +n/2 est ATTEINT EXACTEMENT et JAMAIS dépassé sur 60 départs bruités ; les extrémaux sont exactement les gears fusionnés G(t♯) et leurs duaux, motifs (3,2,…,2) minimaux). Chaînon restant : « B > n/2 ⟹ riche en axes de quasi-symétrie ⟹ monde classifié (mort) »"
+    },
+    {
+      "key": "lemme-h",
+      "name": "Lemme H — comptabilité fusions/scissions par sommet",
+      "statement": "En un sommet i, avec S_i le nombre de paires miroir {±w} SCINDÉES et F_i le nombre de fusions effectives entre classes-largeurs distinctes : #classes(i) = W − F_i + S_i (W = ⌈(n−1)/2⌉) ; le cap ≤ K = ⌊n/2⌋ − 1 donne F_i ≥ S_i + 1 en TOUT sommet, TOUJOURS. Conséquence : Σ_i F_i ≥ n + Σ_i S_i ≥ n + k — le ledger global officiel est « n + k équations exactes contre 2n − 4 paramètres ».",
+      "status": "proved",
+      "proof_location": "notes.md § LEMME H — comptabilité fusions/scissions par sommet (démontré, 1 ligne)",
+      "scope": "tout n, tout sommet ; chaque théorème de rigidité (A/B/D/E) est un certificat d’indépendance locale de ce système ; près du régulier les F sont chères et les S gratuites ⟹ Théorème G"
+    },
+    {
+      "key": "lemme-jonctions",
+      "name": "Lemme des jonctions (cœur du Théorème D)",
+      "statement": "Miroir w = 2,3 aux sommets sains adjacents aux jonctions ⟹ seul le régulier. Élimination exacte complète : avec u = cos(d₁/2), v = cos(d₂/2), cos θ_J = (u² + v² − 4u²v²)/(2uv) ; le système se réduit à G₃ = G₄ = 0 avec G₃ = u² − v² + 16u²v²(u²−1)(4u²−1) et G₄(u,v) = G₃(v,u) ; G₃ linéaire en v², résultant de degré 40, racines réelles dans (0,1) EXACTES = {1/2 (diagonale), cos π/5, cos 2π/5, cos π/8, cos 3π/8}. Exclusions exactes : la coïncidence dorée donne cos θ_J = 1 (jonction PLATE, exclue par convexité stricte), les racines cos π/8 / cos 3π/8 donnent W₃ = 2 ± 2√2 ≠ 0 (parasites de rationalisation).",
+      "status": "proved",
+      "proof_location": "notes.md § THÉORÈME D point 5 (junction_resultant.py, junction_eliminate.py, junction_final.py ; historique junction_lemma.py : 471 racines convergées, toutes régulières)",
+      "scope": "valide dès n₁, n₂ ≥ 4 ; tue k ≤ 2 impair ; local, donc itérable (base du Théorème E)"
+    },
+    {
+      "key": "lemme-m-brut",
+      "name": "Lemme M BRUT (« 4 sains n’importe où ⟹ régulier »)",
+      "statement": "FAUX. Contre-exemples numériques exacts (résidus ~1e-31, mirror_M3) : D₄-alignés {0,4,8,12} à n=16 → 13 solutions non régulières (dist 0,27–0,91) ; {0,5,10,15} à n=20 → 11 solutions ; D₃+1 {0,6,12,3} à n=18 → 11 solutions (0,065–0,48) ; « casse-1 » {0,4,8,13} à n=16 → 9 solutions à dist 0,012–0,018, ni régulières ni diédrales évidentes. Cause : les alignements de symétrie partielle offrent des familles de dimension positive ; le comptage 4W > 2n−4 n’exclut que le cas générique.",
+      "status": "refuted",
+      "proof_location": "notes.md § MORT — LEMME M BRUT",
+      "scope": "ce qui survit : M vaut aux placements GÉNÉRIQUES (transition s* = 4 exacte, n = 15/17/21, groupés inclus) ; l’énoncé structurel « ≥ 4 sains ⟹ union finie de familles à symétrie partielle » reste la cible"
+    },
+    {
+      "key": "lemme-m-lin",
+      "name": "Lemme M-linéarisé — structure des sommets totalement miroir",
+      "statement": "Factorisation du résidu miroir au premier ordre : M_w(p) = C_μ(p) g_w(μ) avec C_μ(p) = 4 Re[i κ̄ z ω^{(μ−1)p}] et g_w(μ) = sin wθ − sin μwθ + sin(μ−1)wθ ; g ≡ 0 ⟺ μ ∈ {0,1} (jauges), involution g(n+1−μ) = g(μ). Si p₁,…,p_s sont totalement miroir, le champ est D_{n/d}-invariant avec d = pgcd(n, 2(p₁−p₂), …, 2(p₁−p_s)). n impair générique ⟹ d = 1 ⟹ régulier, transition s* = 4 ; n pair ⟹ d ≥ 2 TOUJOURS ⟹ la meilleure conclusion possible est la période 2 = famille alternée : l’échappatoire paire est STRUCTURELLE.",
+      "status": "proved",
+      "proof_location": "notes.md § LEMME M-lin (formule + preuve 5 lignes, rang-1 vérifié à 3e-8) ; § LEMME M-LINÉARISÉ",
+      "scope": "premier ordre démontré ; l’énoncé GLOBAL (amplitude finie) est vérifié numériquement avec exceptions listées (mirror_M/M2/M3/M4 : s*=4 exact à n=15/17/21, échappatoires D₃ à n=15 s=3) et conjecturé en général"
+    },
+    {
+      "key": "lemme-s",
+      "name": "R21 — Lemme S (sommes de couches)",
+      "statement": "Avec S_a = Σ_{i} |v_i v_{i+a}| (diamètres comptés deux fois), sommer la règle du quadrilatère sur (i, i+1, i+a, i+a+1) donne 2S_a > S_{a−1} + S_{a+1} ; avec S_a = S_{n−a} il vient S₁ < S₂ < … < S_⌊n/2⌋ STRICT. Conséquences prouvées, tout n : fusion de couches uniforme morte (S_a = S_b) ; bi-pentagone tué en 2 lignes (S₂^imp = S₅ et S₅ > S₂ ⟹ S₂^pair < 0) ; antipode-décalage constant mort.",
+      "status": "proved",
+      "proof_location": "notes.md § R21 — LEMME S (sommes de couches) — agrégation pure de R11",
+      "scope": "tout n ; tue 3 familles infinies ; injecté dans le SMT comme renfort redondant (sanity n ≤ 9 OK)"
+    },
+    {
+      "key": "meta-conjecture-combinatoire",
+      "name": "Méta-conjecture combinatoire (filtre exact)",
+      "statement": "Pour tout n ≥ 6, le système {ordre angulaire (F1), emboîtement (R12), diségalités, acyclicité, Altman, quadrilatère ordonné (R11)} est insatisfiable sur les patterns à ≤ ⌊n/2⌋ − 1 classes par sommet, chaque bloc de taille ≤ ⌊n/2⌋. Si vrai pour tout n, Erdős 982 en découle INTÉGRALEMENT, par un argument purement combinatoire.",
+      "status": "conjectured",
+      "proof_location": "notes.md § Méta-conjecture combinatoire (nouvelle) ; moteurs filter*.c, smt_filter.py",
+      "scope": "vérifié 6 ≤ n ≤ 9 par bi-moteur (DFS + z3, deux implémentations sans code commun, même verdict partout) ; n=10 et n=11 ensuite réglés par z3. Question structurelle pour la preuve générale : montrer que la propagation des chaînes force un quadrilatère dont les deux diagonales sont ≼ ses côtés opposés appariés (le motif du kill n=8)"
+    },
+    {
+      "key": "meta-profils",
+      "name": "Méta-théorème « profils sur-budget »",
+      "statement": "Soit une famille continue {P_θ} de n-gones convexes (Θ compact) et, pour chaque sommet v, un partage des n−1 distances² en N_v ≥ K+1 groupes non vides de valeurs continues en θ ; soit γ_v(θ) le min des écarts entre valeurs de groupes. Si γ♭ := min_θ max_v γ_v(θ) > 0, alors aucun contre-exemple n’est à distance < γ♭/(8·diam²) d’un P_θ : le tube de la famille est VIDE. L’obligation par famille se réduit à : les hypersurfaces de fusion des différents types de sommets ne se rencontrent pas.",
+      "status": "proved",
+      "proof_location": "notes.md § MÉTA-THÉORÈME « PROFILS SUR-BUDGET » (abstraction de G‴) ; RAPPORT.md §3",
+      "scope": "toute famille continue ; instances : le gear (= G‴, γ♭ = γ₀ ≥ c/m²), la famille F (plancher ≥ 5,3e-3 sur toute la boîte 3D, m=6..16), les multiarcs (planchers ≥ 2,2e-2, n=13..21)"
+    },
+    {
+      "key": "meta-q-fusions",
+      "name": "Méta-théorème, version q-fusions",
+      "statement": "Même cadre ; pour le sommet v on pose q_v := N_v − K ≥ 1 et g_v^(q) la q-ième plus petite lacune entre valeurs de groupes CONSÉCUTIVES. Si γ♭_q := min_θ max_v g_v^(q_v)(θ) > 0, le tube de rayon γ♭_q/(8·diam²) est vide. Preuve : au sommet réalisant le max, les fusions inter-groupes disponibles sont ≤ q_v − 1, donc D_v ≥ N_v − (q_v − 1) = K + 1.",
+      "status": "proved",
+      "proof_location": "notes.md § MÉTA-THÉORÈME, VERSION q-FUSIONS",
+      "scope": "généralise L1 ; c’est EXACTEMENT le critère B de F_scan (q-ième lacune), donc le plancher F_scan2 ≥ 5,3e-3 en est une instance — il ne manque que la certification d’intervalle"
+    },
+    {
+      "key": "pinch-s5",
+      "name": "Théorie de l’épinglage — s* = 5 universel (archivée)",
+      "statement": "Cinq sommets sains QUELCONQUES d’une parité suffisent à rigidifier le gear : s* = 5 universel, INDÉPENDANT de m. Comptage réduit exact (Lemme C) : inconnues réduites 4 + 2m, jauges 5, lignes s(m−1)/2 ⟹ extra ≥ (2m−1) − s(m−1)/2, soit extra ≥ 1 pour TOUT Q à s = 4 (déficit exactement 1, uniforme, mesuré m=7..19). Appuyé par le Lemme D (découplage par parité d’offset, démontré en 3 lignes) et le Lemme G (noyau plein du m-gone = 4 si m impair, 5 si m pair). Dégénérescences classifiées : cosets (Q ayant au plus 1 élément hors d’un coset C de dℤ_m, comptages combinatoires exacts vérifiés à m=15, 10, 12) + réflexion (m pair, s=4).",
+      "status": "proved",
+      "proof_location": "notes.md § G″-ARBITRAIRE v2 — LE VRAI MÉCANISME (Lemmes D, G, C) ; archive pinch (pinch_scan*.py, ringpin.py, pinch_probe.py, softcut.py, tstar_pinch.py, tstar_fuse.py, tprobe.py)",
+      "scope": "ARCHIVÉE : plus nécessaire pour le tube gear (subsumé par G‴), mais réutilisable pour la chasse hors-familles et pour le chaînon (P-B) de l’invariant B. Le seuil « ⌈m/2⌉ » du premier sondage était un artefact d’échantillonnage ; l’argument naïf « 2 phases par bloc » (qui donnerait s* = 2) est réfuté — sans équivariance les blocs de Fourier COUPLENT. Maillon (P2) non prouvé : rang R_Q = 2m−1 pour Q de taille 5 non coset-dégénéré (vérifié exhaustivement m=7..13)"
+    },
+    {
+      "key": "r18-complet",
+      "name": "R18-COMPLET — clôture de la branche engrenage pour TOUT n",
+      "statement": "« Tous les sommets symétriques à toutes les couches » ⟹ cordes égales par classes de pgcd ⟹ polygone équilatéral période 2 ⟹ engrenage k=2 exactement. Puis inventaire des racines de fusion dans la fenêtre W_m = 1 ± π²/2m² + O(m⁻⁴) : liste FINIE |a−b|(a+b) ≤ 7 (a = m−u, b = m−v), racines exactes t* = 2cos(π/2m) − 1 (la SEULE dans la fenêtre, < 1) et, par dualité t ↦ 1/t, l’unique racine interne 1/t* > 1 ; elles sont de part et d’autre de 1, séparées de π²/2m² : JAMAIS communes.",
+      "status": "proved",
+      "proof_location": "notes.md § R18 — clôture de la branche symétrique pour TOUT n ; § R18 — COMPLÉTÉ (le trou asymptotique est fermé)",
+      "scope": "tout n ; bornes explicites pour m ≥ 61 + certification mpmath 60 chiffres pour m ≤ 60 (n ≤ 120) ; scan m < 200 ; inventaire complet des racines communes m ∈ [5,20] : 46 « contre-exemples métriques » en étoile, AUCUN dans la fenêtre convexe, séparation minimale 5,6e-5 à m=20"
+    },
+    {
+      "key": "r28",
+      "name": "R28 — patterns tout-symétriques morts (k = 0), n pair ET impair",
+      "statement": "Tout-symétrique ⟹ cycles de couche monochromes ⟹ côtés égaux + 2-cordes impaires égales ⟹ sous-polygone pair RÉGULIER ⟹ engrenage ; les fusions intra-parité sont impossibles (cordes du régulier distinctes) ⟹ chaque parité donne une équation indépendante en t ⟹ deux équations sans racine commune dans la fenêtre (R18-complet) ⟹ mort. n impair : cycle-2 plein ⟹ équilatéral + 2-cordes toutes égales ⟹ RÉGULIER (2 lignes).",
+      "status": "proved",
+      "proof_location": "notes.md § R28 — patterns tout-symétriques morts pour tout n pair ; § R28-impair + théorème k≤1 complet",
+      "scope": "tout n ; répare et généralise R26a, pris en flagrant délit de sur-généralisation par le témoin machine n=14 (k=0, 4-blocs, antipode singleton). Avec k≤1 : le cas k=0 est réglé sur papier pour tout n"
+    },
+    {
+      "key": "r30",
+      "name": "R30 — k ≤ 2 défauts ⟹ mort, tout n",
+      "statement": "n PAIR : cas A (défauts de parités opposées) — les cycles de largeur 2 restent monochromes ⟹ sous-polygone pair régulier ⟹ épinglage R29 des deux anneaux à leurs racines uniques, de part et d’autre de 1 ⟹ mort ; cas B (même parité) — sous-polygone équiangle à ≤ 2 valeurs de côtés en arcs consécutifs, la fermeture Σ_j side_j ω^j = 0 donne (α−β)·Σ_{j<p} ω^j = 0 et la somme géométrique partielle ne s’annule pas (0 < p < m) ⟹ régulier ⟹ mort. n IMPAIR : Théorème D.",
+      "status": "proved",
+      "proof_location": "notes.md § R30 — THÉORÈME k≤2 pour tout n pair ; Théorème D pour n impair",
+      "scope": "complet ; confirmé machine par les strates k≤2 de n=11, 13, 15. Limite identifiée : à k ≥ 3 arcs, la fermeture (2 équations réelles / 3+ inconnues) est soluble, la sous-régularité peut casser"
+    },
+    {
+      "key": "r31",
+      "name": "R31 — rigidité de l’anneau symétrique (⟹ tour 2-adique)",
+      "statement": "Soit m ≥ 6 et X un m-gone équiangle de côtés s_0..s_{m−1} > 0 ; si pour chaque arête j il existe o_j équidistant de V_{j−t} et V_{j+1+t} pour tout t, alors au premier ordre autour du régulier les seules déformations admissibles sont le mode alterné s_l = (−1)^l (m pair). Forme fermée de la rigidité : C_t(ν) = N(m,ν)·K_t(ν) avec K_t = |sin(π(ν−1)/m) D⁺_t − sin(π(ν+1)/m) D⁻_t|, D^±_t = det[sin(τa), sin(τb_±), sin(τc)] pour τ ∈ {1,3,2t+1} et (a, b_±, c) = (π/m)(1, ν±1, ν).",
+      "status": "proved",
+      "proof_location": "notes.md § R31 : RÉDACTION DÉFINITIVE (théorème + preuve) ; (A) K_t(m/2) ≡ 0 en 3 lignes, (B) énumération d’aliasing",
+      "scope": "(A) démontré ; (B) esquisse d’aliasing + scan exhaustif 6 ≤ m < 200 sans exception ; side-checks restants : indépendance des lignes {1,3} et normalisation N(m,ν). Attention : « C = N·K avec N ≍ m^{3/2} » est CIRCULAIRE (N était défini comme C/K) — le lien C ↔ (K, ‖δV‖) est le maillon dérivé ensuite par le Théorème A"
+    },
+    {
+      "key": "thm-a",
+      "name": "Théorème A — rigidité quantitative du mode critique",
+      "statement": "Pour m ≥ 8 pair, au mode critique ν = m/2 − 2 et au témoin j = ⌊m/8⌉, t* = argmin_t |u_t − arccos(1/√3)| : lim_{m→∞} |F|/(ε√m) = 4/(3√6 π) = 0,173315…, donc liminf_m C(m) = +∞, où C(m) = max_{j,t} |F|/ε est la rigidité normalisée de R31. Chaîne de lemmes L1–L9 tous démontrés : (a2) δV en forme close, R42/R46 (rang 1 ⟹ ordres ε⁰ et ε¹ identiquement nuls), R47 (α_t = 2 sin((2t+1)π/m)/sin(π/m)), R55, R57, R51+R54, R58 (num·m² → 128π τ sin²u cos u), R43(i) (Δ·m^{5/2} → 32√2 π²).",
+      "status": "proved",
+      "proof_location": "notes.md § THÉORÈME A — rigidité quantitative du mode critique ; annexe « Dérivations récentes » (R43–R58)",
+      "scope": "généralisations (g1) tout φ = 4πj/m et (g2) uniformité en u DÉMONTRÉES : « le Théorème A est entièrement rédigé, sans maillon numérique ». Contrôle indépendant dps=50 (F_endtoend.py) : 0,18055 / 0,16967 / 0,17507 / 0,17236 / 0,17372 pour m=320..5120, erreur ≈ τ·7,4/m"
+    },
+    {
+      "key": "thm-b",
+      "name": "Théorème B — non-annulation modale (R31-(B))",
+      "statement": "Pour m ≥ 6 pair et 2 ≤ ν ≤ m/2 − 1, il existe t ∈ {2,…,m/2−1} tel que K_t(ν) ≠ 0. Preuve : décomposition exacte T(x) = A sin x + B sin((ν−1)x) + C sin(νx) + D sin((ν+1)x) ; aliasing f ~ m−f sur la grille impaire ; la classe {ν+1, m−ν−1} est isolée et son coefficient D = −s_{ν−1}·2s₁s_ν(cos(2πν/m) − cos(2π/m)) n’est jamais nul ; Parseval sur la grille ⟹ m ≤ 32, contradiction pour m > 32 ; cas finis 6 ≤ m ≤ 32 certifiés dps=40, pire cas max|T| = 1,7104e-3 à (m,ν) = (32,2). Corollaire B′ : minoration explicite par mode, ≥ |D|/2. Corollaire B″ : la conclusion tient dès m > 32 + 16e ⟹ la rigidité modale tolère e < (m−32)/16 couches défectueuses.",
+      "status": "proved",
+      "proof_location": "notes.md § THÉORÈME B — non-annulation modale (preuve + corollaires B′ et B″) ; certifyB.py, aliasingB.py",
+      "scope": "tout m pair ≥ 6 ; B′ certifié dps=40 pour 6 ≤ m ≤ 62 (pire max|T| = 6,54e-5 à (62,2), pire ratio 1,8615 à (60,28)) ⟹ les SEULES directions molles du système par couches au régulier sont les tours 2-adiques ν = m/2 et les jauges"
+    },
+    {
+      "key": "thm-c",
+      "name": "Théorème C — comptabilité perturbative des défauts",
+      "statement": "Au mode critique, le résidu au sommet j vaut |F_j|/ε → 0,1733 √m ·|sin φ_j| avec φ_j = 4πj/m (profil DÉMONTRÉ : num·m² → 32π τ (cos u − cos 3u) sin²φ, seulement 4 nœuds j ≡ 0 mod m/4). Comptage : #{j : |sin φ_j| ≥ ½} = 2m/3, donc si k < 2m/3 sommets sont défectueux il existe un sommet SAIN avec |F_j|/ε ≥ 0,0866 √m — la rigidité du Théorème A survit à Θ(m) défauts.",
+      "status": "proved",
+      "proof_location": "notes.md § THÉORÈME C — comptabilité perturbative des défauts ; final_series_phi.py",
+      "scope": "régime perturbatif autour du régulier, k < 2m/3 ; limite honnête assumée : le régime NON-perturbatif (loin du régulier, k grand) reste le front ouvert"
+    },
+    {
+      "key": "thm-d",
+      "name": "Théorème D — k ≤ 2 défauts",
+      "statement": "k ≤ 2 sommets défectueux ⟹ mort. n IMPAIR : les sommets sains forcent des arcs bi-réguliers (côtés et angles constants par arc, via miroir w=1,2) puis le Lemme des jonctions force le régulier — 3 branches (cosinusoïdes / wrap / épinglage). n PAIR (après correction) : sains ⟹ « régulier OU alterné-gear », l’alterné mourant par R18-complet/gear. Planchers numériques n=13..21 : 5,81/4,37/3,41/2,73/2,23 e-2 = l’identité 2 sin(π/2n) sin(π/n) à moins de 0,5 %, tous atteints AU régulier.",
+      "status": "proved",
+      "proof_location": "notes.md § THÉORÈME D (squelette) ; § R30 — THÉORÈME k≤2 pour tout n pair",
+      "scope": "tout n ; bords n₁ = 0,1,2,3 vérifiés numériquement (border_cases.py, 400 départs chacun, 0 racine non régulière), certification exacte des bords à rédiger"
+    },
+    {
+      "key": "thm-e",
+      "name": "Théorème E — k ≤ n/9 défauts, loin du régulier",
+      "statement": "k ≤ n/9 défauts loin du régulier ⟹ mort, par RÉCURRENCE D’ÉPINGLAGE : (α) une source régulière consécutive de longueur S épingle tout sommet étranger à distance cyclique ≤ S−6 (Vandermonde 3 points : {1, cos jγ, sin jγ} libres, déterminant ∝ sin γ (1−cos γ) ≠ 0) ; (β) un sommet épinglé et sain rejoint la source, une jonction est épinglée par ses deux côtés + convexité stricte ; (γ) amorce S = L₁ ≥ 8 par pigeonhole, la portée croît strictement ⟹ tout le cycle est sur UN cercle à pas constant ⟹ fermeture nγ = 2π ⟹ régulier.",
+      "status": "proved",
+      "proof_location": "notes.md § THÉORÈME E (synthèse) ; § THÉORÈME E (programme) — jonctions itérées",
+      "scope": "k ≤ n/9 avec tous les arcs ≥ 4 ; Lemme(L=1) exact, Lemme(L=2) 0 racine non régulière / 346 convergences et Lemme(L=3) 0 / 306 (numérique) ; k=3 arcs vérifié complet (multiarc.py, toutes partitions : 4,7518e-2 à n=15 pire (1,2,9) ; 4,2369e-2 à n=17 ; 4,2058e-2 à n=19). Subtilité honnête : un motif adverse (défaut, arc court, défaut, …) fait grossir les blocs sans borne"
+    },
+    {
+      "key": "tous-miroir",
+      "name": "Théorème tous-miroir",
+      "statement": "Tous les sommets totalement miroir ⟺ (w=1) équilatéral ET (w=2) angles 2-périodiques ⟺ polygone ALTERNÉ (n pair, famille à 1 paramètre = le gear) / RÉGULIER (n impair, le cycle impair force l’égalité globale des angles). Réciproque : l’axe par chaque sommet préserve l’alternance.",
+      "status": "proved",
+      "proof_location": "notes.md § THÉORÈME TOUS-MIROIR — démontré (2 lignes)",
+      "scope": "ferme la classification s = n du Lemme M"
+    }
+  ],
+  "strata": [
+    {
+      "label": "n=10",
+      "status": "closed",
+      "detail": "UNSAT z3 arsenal complet + Lemme S, 3643 s, zéro pattern bloqué ; énumération complète sans angles = UNE seule famille (le bi-pentagone), tuée à la main par R14/R16/R21 ⟹ n=10 possède une preuve vérifiable par un humain. Strate k≤1 : UNSAT en 7 s",
+      "cpu_seconds": 3643
+    },
+    {
+      "label": "n=11",
+      "status": "closed",
+      "detail": "UNSAT z3 3324 s (un seul moteur) ; strates k≤1 et k≤2 : UNSAT en 20 s et 50 s",
+      "cpu_seconds": 3324
+    },
+    {
+      "label": "n=12",
+      "status": "partial",
+      "detail": "k≤6 UNSAT (2327 s) ; tenaille strate haute k≥7 en cours (job 4150397, >10 h CPU, strat_high.py) — si UNSAT, n=12 ENTIÈREMENT clos. Zone vivante : k=6 exactement",
+      "cpu_seconds": 2327
+    },
+    {
+      "label": "n=13",
+      "status": "partial",
+      "detail": "k≤4 UNSAT ; tenaille strate haute k≥5 en cours (job 4150398, strat_high.py) — si UNSAT, n=13 ENTIÈREMENT clos. Zone vivante : k=5",
+      "cpu_seconds": null
+    },
+    {
+      "label": "n=14",
+      "status": "partial",
+      "detail": "k≤3 UNSAT (3021 s), k≤4 UNSAT (14991 s), k≤5 UNSAT (30227 s, verdict du 14/08) ; tenaille k≥6 lancée le 14/08 (strat_high14.log)",
+      "cpu_seconds": 30227
+    },
+    {
+      "label": "n=15",
+      "status": "partial",
+      "detail": "k≤3 UNSAT (1241 s), k≤4 UNSAT (18374 s, verdict du 14/08) ; tenaille k≥5 lancée le 14/08 (strat_high15.log)",
+      "cpu_seconds": 18374
+    },
+    {
+      "label": "n=16",
+      "status": "partial",
+      "detail": "k≤1 UNSAT ; k=2 SAT combinatoire (834 s puis 24105 s, deux encodages) → boucle CEGAR : UNSAT après 13 patterns bloqués (résidus de réalisation ~0,2 : massivement irréalisables) ⟹ strate k≤2 close modulo 13 cas finis battus numériquement ; aucun candidat de contre-exemple",
+      "cpu_seconds": 24105
+    },
+    {
+      "label": "n=5",
+      "status": "closed",
+      "detail": "R1 — preuve élémentaire (D ≤ 1 partout force les C(n,2) distances égales : ≥ 4 points deux à deux équidistants dans le plan, impossible)",
+      "cpu_seconds": null
+    },
+    {
+      "label": "n=6",
+      "status": "closed",
+      "detail": "Filtre exact DFS : 10⁶ patterns → 1240 (F1+F2) → 0 avec la règle du quadrilatère ; l’unique survivant « 9 diagonales égales » tué à la main par R5. Bi-moteur : z3 UNSAT 0,2 s",
+      "cpu_seconds": 0.2
+    },
+    {
+      "label": "n=7",
+      "status": "closed",
+      "detail": "0 pattern dès F1+F2 (contradiction purement combinatoire, sans géométrie) ; z3 UNSAT 0,4 s",
+      "cpu_seconds": 0.4
+    },
+    {
+      "label": "n=8",
+      "status": "closed",
+      "detail": "Règle du quadrilatère ORDONNÉE : 0 survivant (16 861 nœuds, 5 s) contre 4 survivants avec la règle multiset ; z3 UNSAT 3,5 s ; noyau UNSAT minimal = 13 règles (A90 couche 1 + 12 quads)",
+      "cpu_seconds": 3.5
+    },
+    {
+      "label": "n=9",
+      "status": "closed",
+      "detail": "0 survivant (9 570 nœuds, 5 s) ; z3 UNSAT 5,7 s ; noyau UNSAT minimal = 8 règles, toutes dans une fenêtre de 7 sommets",
+      "cpu_seconds": 5.7
+    }
+  ],
+  "traps": [
+    {
+      "title": "Artefact de collapse : un plancher d’optimisation « à zéro » est une dégénérescence, pas un résultat",
+      "lesson": "TOUT plancher d’optimisation proche de zéro doit d’abord être suspecté de dégénérescence. Cas typiques : g3_floor v1 (« planchers » 2,7e-15 à n=15 et 3,6e-14 à n=18 — l’optimiseur confondait deux sommets du motif, φ₁ = φ₂ et a₁ = a₂, soit un (n−1)-gone déguisé, coût ~δ², la convexité stricte flottante passant encore à δ ~ 1e-4) et F_scan v1 (plancher m=6 « 1,5e-7 » : ρ₁ = ρ₂ et φ₁ → 0, trois sommets confondus). Règle : tout scan de famille doit imposer séparation minimale (min dist ≥ 0,03·diam, ou garde 1e-3·diam²) + convexité + non-dégénérescence des rayons.",
+      "occurrences": 5
+    },
+    {
+      "title": "Tuer un job : `kill <PID-du-nohup>` ne tue que le bash parent",
+      "lesson": "L’enfant python survit au kill du wrapper nohup — pinch_scan v2 a brûlé 67 % de CPU pendant 12 h de plus après un kill cru réussi. Règle : tuer l’ENFANT (ps --ppid ou pkill -f exact), puis VÉRIFIER avec ps. Corollaire de contexte : sur une box à load ~46 pour 4 cœurs, chaque z3 tourne à ~30 % et les verdicts arrivent à ×3 du temps prévu — un job zombie coûte donc directement des jours de verdict.",
+      "occurrences": 1
+    },
+    {
+      "title": "Importer un script de calcul sans guard __main__",
+      "lesson": "F_scan.py avait son main au niveau module : l’importer depuis F_certify40 (volet 2) a REJOUÉ tout le scan 42³ par défaut (~2 h faméliques perdues) et son « FIN » a piégé le guetteur, qui a cru le volet terminé. Double règle : vérifier le guard __main__ AVANT d’importer un script de calcul, et guetter des motifs SPÉCIFIQUES au volet en cours (« -> m=16 »), jamais un marqueur générique comme « FIN ».",
+      "occurrences": 1
+    },
+    {
+      "title": "Certifier un argmin recopié sans le re-polir",
+      "lesson": "Les « ALARMES » m=6/8/10 du volet 1 de F_certify40 étaient un artefact d’argmins TRONQUÉS à 5 décimales, posés sur la garde au coin φ₀ → 0 : à cette précision le point n’est plus un argmin et la certification en dps=40 diverge. Après re-polissage Nelder-Mead depuis la graine tronquée (certify_fix.py), kill_dps40 = kill64 à 8 chiffres. Règle : TOUJOURS re-polir un argmin recopié avant de le certifier.",
+      "occurrences": 1
+    },
+    {
+      "title": "Modules qui se configurent depuis sys.argv AU MOMENT DE L’IMPORT",
+      "lesson": "La première extraction du témoin n=16 k≤2 a produit du charabia : `import cegar` fixe n depuis sys.argv à l’import (défaut n=10), donc le pattern a été extrait avec la géométrie n=10 (10 sommets, réalisation absurde). Règle : passer n explicitement, ou patcher sys.argv AVANT l’import.",
+      "occurrences": 1
+    },
+    {
+      "title": "Outils de monitoring qui se sabotent eux-mêmes",
+      "lesson": "Trois pièges de supervision récurrents : (i) un pkill dont le motif est contenu dans sa propre ligne de commande se tue lui-même — utiliser les PID ; (ii) grep sans --line-buffered dans un pipe de monitoring bufferise, et les logs SEMBLENT bloqués ; (iii) les jobs lancés en `-u script.py` échappent au grep `python3 (hunt|strat)`, d’où une fausse morgue et des relances en double — vérifier /proc/PID/cmdline avant toute relance, et relancer TOUJOURS via le venv (`python3` nu meurt à l’import de z3/scipy).",
+      "occurrences": 3
+    },
+    {
+      "title": "Mesurer la quantité BRUTE au lieu de la quantité NORMALISÉE",
+      "lesson": "R34/R35 v1 mesuraient les déterminants bruts K_t, d’où une « chute de rigidité en m⁻⁵ » qui a fait déclarer R34 FAUX ; la normalisation N(m,ν) la compense exactement et les vraies amplitudes C sont bornées inférieurement, puis croissantes. Même piège pour R34/R35 antérieurs. Leçon consignée explicitement comme « 3ᵉ fois » : toujours mesurer la quantité normalisée — les invariants bruts portent des facteurs d’échelle trompeurs.",
+      "occurrences": 3
+    },
+    {
+      "title": "Circularité d’auto-audit : définir une quantité puis l’invoquer comme mesure indépendante",
+      "lesson": "Écrire « C = N·K avec N ≍ m^{3/2} » était CIRCULAIRE : N avait été DÉFINI comme C/K. Le lien réel C ↔ (K, ‖δV‖) a dû être dérivé à part (Cramer, R42/R43). Corollaire de la même famille : un accord numérique, même à 1,0000 sur plusieurs décades, n’est PAS une démonstration — d’où la convention de statut adoptée (démontré = dérivation écrivable ligne à ligne ; vérifié numériquement jusqu’à X ; conjecturé) et le reclassement en masse des annonces (a1)/(a2)/R36/R38/R40.",
+      "occurrences": 1
+    },
+    {
+      "title": "Un critère de plancher qui n’encode pas TOUTES les obligations du pattern",
+      "lesson": "Deux critères naïfs successifs ont donné des faux positifs sur la famille bi-régulière impaire : (1) « min des gaps consécutifs de la liste triée » compte les égalités miroir ±w comme fusions ⟹ plancher 0 AU RÉGULIER ; (2) « violation miroir seule » ⟹ plancher 2,4e-16, le régulier étant miroir-parfait. Le pattern k≤2 exige SIMULTANÉMENT le miroir global exact ET une fusion inter-classes par sommet sain — deux exigences antagonistes — donc le coût correct est le MAX des deux. Règle jumelle : tout critère de plancher sur une famille CONTENANT le régulier doit exclure explicitement le régulier, qui n’est pas un contre-exemple (D_i = K+1).",
+      "occurrences": 3
+    },
+    {
+      "title": "Tester la réalisabilité sans imposer la convexité DANS L’ORDRE des sommets",
+      "lesson": "Le système « les 9 diagonales égales » (n=6) atteint un résidu exactement nul — apparente réfutation de la preuve : sur 1865 solutions, 1083 ont deux points confondus et AUCUNE n’est un hexagone strictement convexe dans l’ordre v₀…v₅. Le système est soluble dans le plan, jamais par un hexagone convexe. Règle : un test de réalisabilité qui n’impose pas la position convexe dans l’ordre des sommets ne teste pas l’hypothèse du problème. Corollaire : un résidu de moindres carrés qui ne descend pas ne prouve rien (il a fallu tuer le dernier pattern n=6 à la main par R5).",
+      "occurrences": 1
+    },
+    {
+      "title": "Ré-implémenter un moteur validé au lieu d’y greffer la mesure",
+      "lesson": "hunt_dist.py / hunt_dist2.py ré-implémentaient la descente pour mesurer la distance au régulier : aucun optimum convexe audité même avec barrière, et un coût(régulier) incohérent (1,8e-2 contre l’identité 9,4e-3 à n=12) — pipeline bancal, jeté. Règle : GREFFER les mesures sur le moteur déjà validé (hunt2), ne pas ré-implémenter la descente.",
+      "occurrences": 1
+    },
+    {
+      "title": "Sur-généraliser un lemme structurel — et le laisser vérifier par la machine",
+      "lesson": "Plusieurs énoncés ont été pris en flagrant délit par les vérifications stratifiées : R24 v1 (« budget ≤ 3n défauts », faux car les paires asymétriques cassent jusqu’à m−1 largeurs en un sommet), R26a v1 (« une cassure par cycle ⟹ mort », attrapé par le témoin machine n=14, réparé en R28), le LEMME M BRUT (« 4 sains n’importe où ⟹ régulier », faux : D₄-alignés, D₃+1, casse-1), et l’extension « parité-agnostique » du Théorème D (fausse : le gear a TOUS ses sommets totalement miroir sans être régulier). Règle : le duo machine/papier fonctionne dans les DEUX sens — un recollement de parité n’est jamais gratuit, et une transition de comptage n’exclut que le cas générique.",
+      "occurrences": 4
+    }
+  ]
+}
