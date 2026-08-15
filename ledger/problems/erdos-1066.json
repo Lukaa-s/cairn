@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-1066",
+  "title": "Erdős problem 1066",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/1066",
+  "status": "catalogued",
+  "one_liner": "graph theory, planar graphs · OEIS possible",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "graph-theory planar-graphs",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

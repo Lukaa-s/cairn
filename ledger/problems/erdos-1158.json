@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-1158",
+  "title": "Erdős problem 1158",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/1158",
+  "status": "catalogued",
+  "one_liner": "hypergraphs, turan number · OEIS possible",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "hypergraphs turan-number",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-479",
+  "title": "Erdős problem 479",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/479",
+  "status": "catalogued",
+  "one_liner": "number theory · OEIS A036236, A015919, A050259, A015921, A006521, A006517, A015940",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "number-theory",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-563",
+  "title": "Erdős problem 563",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/563",
+  "status": "catalogued",
+  "one_liner": "graph theory, ramsey theory, hypergraphs",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "graph-theory hypergraphs ramsey-theory",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

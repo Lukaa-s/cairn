@@ -102,6 +102,7 @@ class Store:
           one_liner TEXT,
           state_of_the_art TEXT,
           honest_estimate TEXT,
+          tags TEXT,
           created_at TEXT NOT NULL,
           updated_at TEXT NOT NULL
         );
@@ -225,6 +226,9 @@ class Store:
         """
         )
         cur.close()
+        cols = {r[1] for r in self.db.execute("PRAGMA table_info(problems)")}
+        if "tags" not in cols:
+            self.db.execute("ALTER TABLE problems ADD COLUMN tags TEXT")
         self.db.execute(
             "INSERT OR REPLACE INTO meta(k,v) VALUES('schema_version',?)", (str(SCHEMA_VERSION),)
         )
@@ -279,14 +283,15 @@ class Store:
         now = utcnow()
         cur = self.db.execute(
             """INSERT INTO problems(slug,title,statement,source_url,status,one_liner,
-                 state_of_the_art,honest_estimate,created_at,updated_at)
+                 state_of_the_art,honest_estimate,tags,created_at,updated_at)
                VALUES(:slug,:title,:statement,:source_url,:status,:one_liner,
-                 :state_of_the_art,:honest_estimate,:now,:now)
+                 :state_of_the_art,:honest_estimate,:tags,:now,:now)
                ON CONFLICT(slug) DO UPDATE SET
                  title=excluded.title, statement=excluded.statement,
                  source_url=excluded.source_url, status=excluded.status,
                  one_liner=excluded.one_liner, state_of_the_art=excluded.state_of_the_art,
-                 honest_estimate=excluded.honest_estimate, updated_at=excluded.updated_at""",
+                 honest_estimate=excluded.honest_estimate, tags=excluded.tags,
+                 updated_at=excluded.updated_at""",
             {
                 "slug": kw["slug"],
                 "title": kw["title"],
@@ -296,6 +301,7 @@ class Store:
                 "one_liner": kw.get("one_liner"),
                 "state_of_the_art": kw.get("state_of_the_art"),
                 "honest_estimate": kw.get("honest_estimate"),
+                "tags": kw.get("tags"),
                 "now": now,
             },
         )

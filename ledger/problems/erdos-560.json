@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-560",
+  "title": "Erdős problem 560",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/560",
+  "status": "catalogued",
+  "one_liner": "graph theory, ramsey theory · OEIS possible",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "graph-theory ramsey-theory",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

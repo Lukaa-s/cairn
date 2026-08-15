@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-168",
+  "title": "Erdős problem 168",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/168",
+  "status": "catalogued",
+  "one_liner": "additive combinatorics · OEIS A004059, A057561, A094708, A386439",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "additive-combinatorics",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

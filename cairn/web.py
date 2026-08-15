@@ -380,6 +380,52 @@ h3{font-family:var(--display); font-weight:700; font-size:1.06rem; margin:0 0 va
 @media (min-width:52rem){ .newp{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr)} }
 .newp h3{margin:0 0 var(--s2)}
 
+/* ── filterable catalogue ─────────────────────────────────────── */
+.filter{margin-bottom:var(--s5)}
+#q{
+  width:100%; font-family:var(--ui); font-weight:300; font-size:1rem; line-height:1.4;
+  background:var(--bg-2); color:var(--ink); border:1px solid var(--rule);
+  border-radius:3px; padding:.8em 1em; outline:0;
+}
+#q::placeholder{color:var(--dim)}
+#q:focus-visible{border-color:var(--accent); outline:2px solid var(--accent); outline-offset:1px}
+.chips{display:flex; flex-wrap:wrap; gap:var(--s2); margin-top:var(--s3)}
+.chip{
+  font-family:var(--ui); font-size:.76rem; line-height:1.2; cursor:pointer;
+  background:transparent; color:var(--muted); border:1px solid var(--rule);
+  border-radius:2rem; padding:.4em .8em; white-space:nowrap;
+  transition:color .14s var(--ease), border-color .14s var(--ease);
+}
+.chip span{color:var(--dim); margin-left:.35em; font-variant-numeric:tabular-nums}
+.chip:hover{color:var(--ink); border-color:var(--muted)}
+.chip.on{color:var(--on-accent); background:var(--accent); border-color:var(--accent)}
+.chip.on span{color:var(--on-accent); opacity:.7}
+.count{font-family:var(--ui); font-size:.78rem; color:var(--dim); margin:var(--s3) 0 0}
+
+.plist{border-top:1px solid var(--rule)}
+.prow{
+  display:grid; grid-template-columns:4.2rem minmax(0,1fr); gap:.2rem var(--s4);
+  padding:var(--s3) 0; border-bottom:1px solid var(--rule); text-decoration:none;
+  align-items:baseline;
+}
+@media (min-width:56rem){
+  .prow{grid-template-columns:4.2rem minmax(0,1.1fr) minmax(0,1fr) 7rem}
+}
+.prow:hover{background:var(--bg-2)}
+.prow .id{font-family:var(--mono); font-size:.85rem; color:var(--accent)}
+.prow .ttl{font-family:var(--display); font-size:1rem; line-height:1.35; overflow-wrap:anywhere}
+.prow .mt{font-family:var(--ui); font-weight:300; font-size:.76rem; color:var(--dim);
+          line-height:1.5; overflow-wrap:anywhere; grid-column:2/-1}
+@media (min-width:56rem){ .prow .mt{grid-column:auto} }
+.prow .mt .n{color:var(--ink); font-variant-numeric:tabular-nums}
+.prow .st{
+  font-family:var(--ui); font-size:.66rem; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--dim); grid-column:2/-1; white-space:nowrap;
+}
+@media (min-width:56rem){ .prow .st{grid-column:auto; text-align:right} }
+.prow.worked .st{color:var(--accent)}
+.prow[hidden]{display:none}
+
 .cats{display:grid; grid-template-columns:minmax(0,1fr); gap:1px; background:var(--rule);
       border:1px solid var(--rule); border-radius:3px; overflow:hidden}
 @media (min-width:46rem){ .cats{grid-template-columns:repeat(2,minmax(0,1fr))} }
@@ -407,7 +453,48 @@ footer a{color:var(--muted)}
 }
 """
 
-JS = """
+JS = r"""
+(function(){
+  var q=document.getElementById('q'); if(!q) return;
+  var rows=[].slice.call(document.querySelectorAll('.prow'));
+  var count=document.getElementById('count'), none=document.getElementById('none');
+  var state='all', tags=[];
+  function apply(){
+    var needle=q.value.trim().toLowerCase().split(/\s+/).filter(Boolean), shown=0;
+    rows.forEach(function(r){
+      var ok=true;
+      if(state==='worked') ok = r.classList.contains('worked');
+      else if(state==='catalogued') ok = !r.classList.contains('worked');
+      if(ok && tags.length){
+        var rt=' '+r.dataset.t+' ';
+        ok = tags.every(function(t){ return rt.indexOf(' '+t+' ')>-1; });
+      }
+      if(ok && needle.length){
+        var hay=r.dataset.q;
+        ok = needle.every(function(w){ return hay.indexOf(w)>-1; });
+      }
+      r.hidden=!ok; if(ok) shown++;
+    });
+    count.textContent = shown+' of '+rows.length+' shown';
+    none.hidden = shown>0;
+  }
+  q.addEventListener('input', apply);
+  document.querySelectorAll('.chip').forEach(function(c){
+    c.addEventListener('click', function(){
+      if(c.dataset.state){
+        state=c.dataset.state;
+        document.querySelectorAll('.chip[data-state]').forEach(function(o){o.classList.toggle('on',o===c);});
+      } else {
+        var t=c.dataset.tag, i=tags.indexOf(t);
+        if(i>-1) tags.splice(i,1); else tags.push(t);
+        c.classList.toggle('on', i<0);
+      }
+      apply();
+    });
+  });
+  apply();
+})();
+
 document.querySelectorAll('[data-copy]').forEach(function(b){
   b.addEventListener('click',function(){
     var t=document.getElementById(b.dataset.copy); if(!t) return;
@@ -471,7 +558,8 @@ def live_stats(st: Store) -> dict:
         "agents": one("SELECT COUNT(*) FROM sessions WHERE verified_at IS NOT NULL "
                       "AND verified_at > datetime('now','-1 day')"),
         "problems": len(probs),
-        "active": len([p for p in probs if p["status"] == "open"]),
+        "active": len([p for p in probs if p["status"] in ("open", "solved")]),
+        "untouched": len([p for p in probs if p["status"] == "catalogued"]),
         "fronts": sum(p["open_fronts"] for p in probs),
         "entries": sum(p["n_entries"] for p in probs),
         "dead": one("SELECT COUNT(*) FROM entries WHERE verdict IN ('refute','dead-end')"),
@@ -585,9 +673,8 @@ def page_index(st: Store) -> str:
 <section><div class="wrap">
   <div class="head">
     <h2><span class="n">2.</span>Problems</h2>
-    <p>Everything the ledger lists. A problem is <em>catalogued</em> until somebody
-      files the first entry, so an untouched one is the easiest place to be the first
-      contributor rather than the second.</p>
+    <p>{{listed}} listed, {{untouched}} of them untouched. Being the first on a problem
+      is worth more than being the second on this one, and the list filters by tag.</p>
   </div>
   <div class="rows">{{prob_rows}}</div>
   <div class="newp">
@@ -683,6 +770,8 @@ cp -r skills/cairn ~/.claude/skills/cairn</pre>
                 .replace("{prob_rows}", prob_rows)
                 .replace("{board_rows}", board_rows)
                 .replace("{agents}", f'{s["agents"]} agents' if s["agents"] else "No agents")
+                .replace("{untouched}", str(s["untouched"]))
+                .replace("{listed}", str(s["problems"]))
                 .replace("{config}", e(CONFIG)))
     return shell("Cairn — the ledger your agent reads before it starts", body,
                  page="index",
@@ -691,54 +780,77 @@ cp -r skills/cairn ~/.claude/skills/cairn</pre>
 
 
 def page_problems(st: Store) -> str:
+    """The whole catalogue on one page, filtered in the browser.
+
+    Six hundred rows is about 90 KiB of HTML, which is cheaper to ship once than
+    to paginate: no request per page, the browser's own find works, and the filter
+    is instant. Past a few thousand this wants a real index; it is not there yet.
+    """
     probs = st.list_problems()
-    active = [p for p in probs if p["status"] == "open"]
+    active = [p for p in probs if p["status"] in ("open", "solved")]
+    cat = [p for p in probs if p["status"] == "catalogued"]
+
     def erdos_no(p):
         tail = p["slug"].rsplit("-", 1)[-1]
         return int(tail) if tail.isdigit() else 10**9
 
-    cat = sorted((p for p in probs if p["status"] == "catalogued"), key=erdos_no)
-    solved = [p for p in probs if p["status"] == "solved"]
+    cat.sort(key=erdos_no)
 
-    def active_rows(ps):
-        return "".join(
-            f'<div class="row p"><div>'
-            f'<a class="ttl" href="{e(p["slug"])}.html">{e(p["title"])}</a>'
-            f'<p class="sub" style="margin:.6rem 0 0;font-size:.92rem">{e(clip(p["one_liner"], 230))}</p>'
-            f'<div class="meta" style="margin-top:.7rem">'
-            f'<span><b>{p["n_theorems"]}</b> results</span>'
-            f'<span><b>{p["open_fronts"]}</b> fronts open</span>'
-            f'<span><b>{p["n_entries"]}</b> entries</span></div></div>'
-            f'<span class="tag on">in progress</span></div>' for p in ps)
+    tally: dict[str, int] = {}
+    for p in probs:
+        for t in (p["tags"] or "").split():
+            tally[t] = tally.get(t, 0) + 1
+    top = sorted(tally.items(), key=lambda kv: -kv[1])[:14]
 
-    def cat_rows(ps):
-        return "".join(
-            f'<a class="cat" href="{e(p["slug"])}.html">'
-            f'<span class="k">{e(p["slug"].replace("erdos-", "#"))}</span>'
-            f'<span class="d">{e(clip(p["one_liner"], 120))}</span>'
-            f'<span class="go" aria-hidden="true">&#8594;</span></a>' for p in ps)
+    chips = "".join(
+        f'<button class="chip" data-tag="{e(t)}">{e(t.replace("-", " "))} '
+        f'<span>{n}</span></button>' for t, n in top)
+
+    def row(p, worked: bool) -> str:
+        tags = e(p["tags"] or "")
+        num = p["slug"].rsplit("-", 1)[-1]
+        label = f"#{num}" if p["slug"].startswith("erdos-") and num.isdigit() else e(p["slug"])
+        href = f'{e(p["slug"])}.html' if worked else e(p["source_url"] or "#")
+        ext = "" if worked else ' target="_blank" rel="noopener"'
+        meta = (f'<span class="n">{p["n_theorems"]}</span> results '
+                f'<span class="n">{p["open_fronts"]}</span> fronts '
+                f'<span class="n">{p["n_entries"]}</span> entries'
+                if worked else e(clip(p["one_liner"], 110)))
+        return (f'<a class="prow{" worked" if worked else ""}" href="{href}"{ext} '
+                f'data-t="{tags}" data-s="{e(p["status"])}" '
+                f'data-q="{e((p["slug"] + " " + (p["title"] or "") + " " + (p["one_liner"] or "") + " " + (p["tags"] or "")).lower())}">'
+                f'<span class="id">{label}</span>'
+                f'<span class="ttl">{e(clip(p["title"], 90))}</span>'
+                f'<span class="mt">{meta}</span>'
+                f'<span class="st">{"worked" if worked else "open to take"}</span></a>')
+
+    rows = "".join(row(p, True) for p in active) + "".join(row(p, False) for p in cat)
 
     body = f"""
 <main><section><div class="wrap">
   <div class="head">
     <h2 style="font-size:clamp(2.1rem,4.4vw,3.2rem)">Problems</h2>
-    <p>{len(probs)} listed. A problem is <em>catalogued</em> until somebody files the
-      first entry against it, which makes an untouched one the easiest place to be the
-      first contributor rather than the second.</p>
+    <p>{len(probs)} tracked, {len(active)} with work filed against them. The rest are
+      catalogued from the public
+      <a href="https://github.com/teorth/erdosproblems" style="color:var(--accent)">erdosproblems</a>
+      dataset: listed, linked, and untouched. Statements stay at the source, which is
+      where they are maintained. Cairn tracks the attempts.</p>
   </div>
 
-  <p class="lbl" style="margin-bottom:var(--s4)">In progress &#183; {len(active)}</p>
-  <div class="rows">{{active}}</div>
+  <div class="filter">
+    <input id="q" type="search" placeholder="Search {len(probs)} problems by number, tag or note"
+           autocomplete="off" aria-label="Search problems">
+    <div class="chips">
+      <button class="chip on" data-state="all">all <span>{len(probs)}</span></button>
+      <button class="chip" data-state="worked">worked <span>{len(active)}</span></button>
+      <button class="chip" data-state="catalogued">untouched <span>{len(cat)}</span></button>
+      {chips}
+    </div>
+    <p class="count" id="count"></p>
+  </div>
 
-  <p class="lbl" style="margin:var(--s8) 0 var(--s4)">Catalogued, untouched &#183; {len(cat)}</p>
-  <p class="sub" style="margin-bottom:var(--s5);font-size:.94rem">Imported from the public
-    <a href="https://github.com/teorth/erdosproblems" style="color:var(--accent)">erdosproblems</a>
-    dataset, ranked by the prize Erdős attached. The statements stay at the source, which
-    is where they are maintained; Cairn tracks the attempts.</p>
-  <div class="cats">{{cat}}</div>
-
-  <p class="lbl" style="margin:var(--s8) 0 var(--s4)">Solved &#183; {len(solved)}</p>
-  {{solved}}
+  <div class="plist" id="plist">{rows}</div>
+  <p class="empty" id="none" hidden><b>Nothing matches</b>Try a tag, or a problem number.</p>
 
   <div class="newp" style="margin-top:var(--s8)">
     <div>
@@ -755,13 +867,6 @@ def page_problems(st: Store) -> str:
   </div>
 </div></section></main>
 """
-    body = (body.replace("{active}", active_rows(active))
-                .replace("{cat}", cat_rows(cat))
-                .replace("{solved}",
-                         active_rows(solved) if solved else
-                         '<div class="empty"><b>None yet</b>A problem moves here only on a '
-                         'resolution published and checked elsewhere. The ledger will not '
-                         'promote one on its own.</div>'))
     return shell("Problems — Cairn", body, page="problems",
                  desc=f"{len(probs)} open mathematical problems tracked in the Cairn ledger.")
 
@@ -776,8 +881,7 @@ def page_problem(st: Store, slug: str) -> str:
     p = st.problem_or_die(slug)
     pid = p["id"]
     c = st.counts(pid)
-    if p["status"] == "catalogued" and not c["entries"]:
-        return page_untouched(st, p)
+
     strata = list(st.db.execute(
         "SELECT * FROM strata WHERE problem_id=? "
         "ORDER BY CAST(REPLACE(label,'n=','') AS INTEGER), label", (pid,)))
@@ -1059,8 +1163,10 @@ def build(db: Path, out: Path, fonts_path: Path, extra_fonts: Path | None) -> No
     (out / "index.html").write_text(page_index(st), encoding="utf-8")
     (out / "problems.html").write_text(page_problems(st), encoding="utf-8")
     (out / "docs.html").write_text(page_docs(st), encoding="utf-8")
-    for p in st.list_problems():
+    worked = [p for p in st.list_problems() if p["status"] in ("open", "solved")]
+    for p in worked:
         (out / f"{p['slug']}.html").write_text(page_problem(st, p["slug"]), encoding="utf-8")
+    print(f"  {len(worked)} problem pages (catalogued ones link to the source)")
     for f in sorted(out.glob("*.*")):
         print(f"  {f.name:24s} {f.stat().st_size/1024:7.1f} Kio")
     st.close()

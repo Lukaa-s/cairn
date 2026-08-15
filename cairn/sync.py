@@ -41,7 +41,7 @@ from typing import Any
 from .store import Store, utcnow
 
 PROBLEM_FIELDS = ("slug", "title", "statement", "source_url", "status", "one_liner",
-                  "state_of_the_art", "honest_estimate")
+                  "state_of_the_art", "honest_estimate", "tags")
 
 # A single file above this is held back from git. Chosen from the real corpus:
 # the largest artifact in the reference campaign is 15 KiB, so this leaves three

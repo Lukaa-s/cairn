@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-468",
+  "title": "Erdős problem 468",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/468",
+  "status": "catalogued",
+  "one_liner": "number theory, divisors · OEIS A167485, A387502, A387503",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "divisors number-theory",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

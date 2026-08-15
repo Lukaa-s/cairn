@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-11",
+  "title": "Erdős problem 11",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/11",
+  "status": "catalogued",
+  "one_liner": "number theory, additive basis · OEIS A001220, A377587",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "additive-basis number-theory",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-912",
+  "title": "Erdős problem 912",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/912",
+  "status": "catalogued",
+  "one_liner": "number theory, factorials · OEIS A071626",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "factorials number-theory",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-483",
+  "title": "Erdős problem 483",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/483",
+  "status": "catalogued",
+  "one_liner": "number theory, additive combinatorics, ramsey theory · OEIS A030126",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "additive-combinatorics number-theory ramsey-theory",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-386",
+  "title": "Erdős problem 386",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/386",
+  "status": "catalogued",
+  "one_liner": "number theory, binomial coefficients · OEIS A280992",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "binomial-coefficients number-theory",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

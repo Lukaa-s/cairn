@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-410",
+  "title": "Erdős problem 410",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/410",
+  "status": "catalogued",
+  "one_liner": "number theory, iterated functions · OEIS A007497, possible",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "iterated-functions number-theory",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

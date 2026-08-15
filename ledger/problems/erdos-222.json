@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-222",
+  "title": "Erdős problem 222",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/222",
+  "status": "catalogued",
+  "one_liner": "number theory, squares · OEIS A001481, A256435",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "number-theory squares",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

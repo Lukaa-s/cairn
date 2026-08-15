@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-700",
+  "title": "Erdős problem 700",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/700",
+  "status": "catalogued",
+  "one_liner": "number theory, binomial coefficients · OEIS A091963, possible",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "binomial-coefficients number-theory",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

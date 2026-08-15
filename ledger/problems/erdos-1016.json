@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-1016",
+  "title": "Erdős problem 1016",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/1016",
+  "status": "catalogued",
+  "one_liner": "graph theory, cycles · OEIS A105206",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "cycles graph-theory",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

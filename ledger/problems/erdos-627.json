@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-627",
+  "title": "Erdős problem 627",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/627",
+  "status": "catalogued",
+  "one_liner": "graph theory, chromatic number · OEIS possible",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "chromatic-number graph-theory",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

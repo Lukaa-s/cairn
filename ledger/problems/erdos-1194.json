@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-1194",
+  "title": "Erdős problem 1194",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/1194",
+  "status": "catalogued",
+  "one_liner": "additive combinatorics, additive basis, sidon sets · OEIS possible",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "additive-basis additive-combinatorics sidon-sets",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

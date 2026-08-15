@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-727",
+  "title": "Erdős problem 727",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/727",
+  "status": "catalogued",
+  "one_liner": "number theory, factorials · OEIS A002503, A343507, A389396",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "factorials number-theory",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

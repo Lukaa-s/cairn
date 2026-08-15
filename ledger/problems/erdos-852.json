@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-852",
+  "title": "Erdős problem 852",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/852",
+  "status": "catalogued",
+  "one_liner": "number theory, primes · OEIS A001223, A053597, A078515",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "number-theory primes",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

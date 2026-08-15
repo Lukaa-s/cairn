@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-1030",
+  "title": "Erdős problem 1030",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/1030",
+  "status": "catalogued",
+  "one_liner": "graph theory, ramsey theory · OEIS A000791, A059442",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "graph-theory ramsey-theory",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

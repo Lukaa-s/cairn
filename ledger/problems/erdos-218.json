@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-218",
+  "title": "Erdős problem 218",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/218",
+  "status": "catalogued",
+  "one_liner": "number theory, primes · OEIS A333230, A333231, A064113",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "number-theory primes",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

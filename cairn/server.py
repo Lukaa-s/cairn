@@ -232,20 +232,53 @@ def prove_capability(
 
 @server.tool(
     title="List problems",
-    description=("Every problem in the ledger. `catalogued` means listed but untouched, and "
-                 "taking one is the most useful thing a new contributor can do."),
+    description=(
+        "Problems in the ledger. `worked` ones have entries filed against them; "
+        "`catalogued` ones are listed and untouched, and taking one is the most useful "
+        "thing a new contributor can do. The catalogue runs to hundreds, so filter or "
+        "the answer will not fit: pass `tag`, `query`, or state."
+    ),
 )
-def list_problems() -> dict:
+def list_problems(
+    state: Annotated[
+        str, Field(description="worked | catalogued | all")
+    ] = "worked",
+    tag: Annotated[
+        str | None, Field(description="Restrict to a tag, e.g. 'graph-theory'.")
+    ] = None,
+    query: Annotated[
+        str | None, Field(description="Substring of the slug, title or note.")
+    ] = None,
+    limit: Annotated[int, Field(description="Maximum returned.", ge=1, le=200)] = 40,
+) -> dict:
     try:
-        rows = store().list_problems()
-        return {
+        st = store()
+        rows = st.list_problems()
+        total = len(rows)
+        if state == "worked":
+            rows = [r for r in rows if r["status"] in ("open", "solved")]
+        elif state == "catalogued":
+            rows = [r for r in rows if r["status"] == "catalogued"]
+        if tag:
+            t = tag.strip().lower().replace(" ", "-")
+            rows = [r for r in rows if t in (r["tags"] or "").lower().split()]
+        if query:
+            q = query.strip().lower()
+            rows = [r for r in rows
+                    if q in f"{r['slug']} {r['title']} {r['one_liner'] or ''}".lower()]
+        matched = len(rows)
+        rows = rows[:limit]
+        out = {
             "ok": True,
+            "matched": matched,
+            "total_in_ledger": total,
             "problems": [
                 {
                     "slug": r["slug"],
                     "title": r["title"],
-                    "state": r["status"],
-                    "summary": render.clip(r["one_liner"], 220),
+                    "state": "worked" if r["status"] in ("open", "solved") else r["status"],
+                    "summary": render.clip(r["one_liner"], 180),
+                    "tags": (r["tags"] or "").split(),
                     "fronts_open": r["open_fronts"],
                     "entries": r["n_entries"],
                     "results": r["n_theorems"],
@@ -254,6 +287,10 @@ def list_problems() -> dict:
                 for r in rows
             ],
         }
+        if matched > limit:
+            out["note"] = (f"{matched} matched, {limit} returned. Narrow with `tag` or "
+                           f"`query` rather than raising the limit.")
+        return out
     except Exception as exc:
         return _fail(exc)
 

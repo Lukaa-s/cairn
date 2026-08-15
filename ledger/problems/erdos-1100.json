@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-1100",
+  "title": "Erdős problem 1100",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/1100",
+  "status": "catalogued",
+  "one_liner": "number theory, divisors · OEIS A325864, possible",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "divisors number-theory",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

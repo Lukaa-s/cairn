@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-32",
+  "title": "Erdős problem 32",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/32",
+  "status": "catalogued",
+  "one_liner": "number theory, additive basis",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "additive-basis number-theory",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

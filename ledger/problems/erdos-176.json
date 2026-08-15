@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-176",
+  "title": "Erdős problem 176",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/176",
+  "status": "catalogued",
+  "one_liner": "additive combinatorics, arithmetic progressions, discrepancy · OEIS possible",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "additive-combinatorics arithmetic-progressions discrepancy",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

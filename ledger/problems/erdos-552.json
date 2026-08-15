@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-552",
+  "title": "Erdős problem 552",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/552",
+  "status": "catalogued",
+  "one_liner": "graph theory, ramsey theory · OEIS A006672",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "graph-theory ramsey-theory",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

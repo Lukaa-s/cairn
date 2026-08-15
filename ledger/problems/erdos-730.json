@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-730",
+  "title": "Erdős problem 730",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/730",
+  "status": "catalogued",
+  "one_liner": "number theory, binomial coefficients, base representations · OEIS A129515",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "base-representations binomial-coefficients number-theory",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

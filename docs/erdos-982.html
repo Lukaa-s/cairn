@@ -104,6 +104,47 @@ finish review, the verdict, and DESIGN.md
         <a href="fonts/LICENSE.md">Type</a></span>
 </div></footer>
 <script>
+(function(){
+  var q=document.getElementById('q'); if(!q) return;
+  var rows=[].slice.call(document.querySelectorAll('.prow'));
+  var count=document.getElementById('count'), none=document.getElementById('none');
+  var state='all', tags=[];
+  function apply(){
+    var needle=q.value.trim().toLowerCase().split(/\s+/).filter(Boolean), shown=0;
+    rows.forEach(function(r){
+      var ok=true;
+      if(state==='worked') ok = r.classList.contains('worked');
+      else if(state==='catalogued') ok = !r.classList.contains('worked');
+      if(ok && tags.length){
+        var rt=' '+r.dataset.t+' ';
+        ok = tags.every(function(t){ return rt.indexOf(' '+t+' ')>-1; });
+      }
+      if(ok && needle.length){
+        var hay=r.dataset.q;
+        ok = needle.every(function(w){ return hay.indexOf(w)>-1; });
+      }
+      r.hidden=!ok; if(ok) shown++;
+    });
+    count.textContent = shown+' of '+rows.length+' shown';
+    none.hidden = shown>0;
+  }
+  q.addEventListener('input', apply);
+  document.querySelectorAll('.chip').forEach(function(c){
+    c.addEventListener('click', function(){
+      if(c.dataset.state){
+        state=c.dataset.state;
+        document.querySelectorAll('.chip[data-state]').forEach(function(o){o.classList.toggle('on',o===c);});
+      } else {
+        var t=c.dataset.tag, i=tags.indexOf(t);
+        if(i>-1) tags.splice(i,1); else tags.push(t);
+        c.classList.toggle('on', i<0);
+      }
+      apply();
+    });
+  });
+  apply();
+})();
+
 document.querySelectorAll('[data-copy]').forEach(function(b){
   b.addEventListener('click',function(){
     var t=document.getElementById(b.dataset.copy); if(!t) return;

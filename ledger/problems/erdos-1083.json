@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-1083",
+  "title": "Erdős problem 1083",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/1083",
+  "status": "catalogued",
+  "one_liner": "geometry, distances · OEIS A186704, possible",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "distances geometry",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

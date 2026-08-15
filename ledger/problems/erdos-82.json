@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-82",
+  "title": "Erdős problem 82",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/82",
+  "status": "catalogued",
+  "one_liner": "graph theory · OEIS A120414, A390256, A390257, A390919, A392636, A394400, A394462",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "graph-theory",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

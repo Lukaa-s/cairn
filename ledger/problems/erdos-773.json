@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-773",
+  "title": "Erdős problem 773",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/773",
+  "status": "catalogued",
+  "one_liner": "number theory, sidon sets, squares · OEIS A390813",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "number-theory sidon-sets squares",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

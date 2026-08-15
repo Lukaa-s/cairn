@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-141",
+  "title": "Erdős problem 141",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/141",
+  "status": "catalogued",
+  "one_liner": "additive combinatorics, primes, arithmetic progressions · OEIS A006560",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "additive-combinatorics arithmetic-progressions primes",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

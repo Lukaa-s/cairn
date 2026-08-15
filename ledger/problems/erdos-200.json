@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-200",
+  "title": "Erdős problem 200",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/200",
+  "status": "catalogued",
+  "one_liner": "primes, arithmetic progressions · OEIS A005115",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "arithmetic-progressions primes",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

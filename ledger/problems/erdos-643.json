@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-643",
+  "title": "Erdős problem 643",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/643",
+  "status": "catalogued",
+  "one_liner": "graph theory, hypergraphs · OEIS possible",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "graph-theory hypergraphs",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

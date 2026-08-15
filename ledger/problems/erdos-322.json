@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-322",
+  "title": "Erdős problem 322",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/322",
+  "status": "catalogued",
+  "one_liner": "number theory, powers · OEIS A025456, A025418",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "number-theory powers",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

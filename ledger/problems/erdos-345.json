@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-345",
+  "title": "Erdős problem 345",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/345",
+  "status": "catalogued",
+  "one_liner": "number theory, complete sequences · OEIS A001661",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "complete-sequences number-theory",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

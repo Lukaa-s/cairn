@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-849",
+  "title": "Erdős problem 849",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/849",
+  "status": "catalogued",
+  "one_liner": "number theory, binomial coefficients · OEIS A003016, A003015, A059233, A098565, A090162, A180058, A182237",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "binomial-coefficients number-theory",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

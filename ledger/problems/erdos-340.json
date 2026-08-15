@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-340",
+  "title": "Erdős problem 340",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/340",
+  "status": "catalogued",
+  "one_liner": "number theory, additive combinatorics, sidon sets · OEIS A080200, A005282",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "additive-combinatorics number-theory sidon-sets",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

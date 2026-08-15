@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-757",
+  "title": "Erdős problem 757",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/757",
+  "status": "catalogued",
+  "one_liner": "geometry, distances, sidon sets · OEIS possible",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "distances geometry sidon-sets",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

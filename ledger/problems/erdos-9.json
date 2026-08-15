@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-9",
+  "title": "Erdős problem 9",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/9",
+  "status": "catalogued",
+  "one_liner": "number theory, additive basis, primes · OEIS A006286",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "additive-basis number-theory primes",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

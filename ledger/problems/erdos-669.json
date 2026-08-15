@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-669",
+  "title": "Erdős problem 669",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/669",
+  "status": "catalogued",
+  "one_liner": "geometry · OEIS A003035, A006065, A008997, possible",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "geometry",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

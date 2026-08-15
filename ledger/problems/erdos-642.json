@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-642",
+  "title": "Erdős problem 642",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/642",
+  "status": "catalogued",
+  "one_liner": "graph theory, cycles · OEIS possible",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "cycles graph-theory",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

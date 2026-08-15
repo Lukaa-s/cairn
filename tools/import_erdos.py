@@ -60,7 +60,7 @@ def main(argv: list[str] | None = None) -> int:
     root = Path(__file__).resolve().parent.parent
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--db", type=Path, default=root / "cairn.db")
-    ap.add_argument("--limit", type=int, default=60)
+    ap.add_argument("--limit", type=int, default=0, help="0 = every open problem")
     ap.add_argument("--prized-only", action="store_true",
                     help="only problems carrying an Erdős prize")
     a = ap.parse_args(argv)
@@ -75,23 +75,28 @@ def main(argv: list[str] | None = None) -> int:
         openish = [p for p in openish if p.get("prize")]
 
     def rank(p):
-        money = int(re.sub(r"\D", "", p.get("prize") or "0") or 0)
+        raw = (p.get("prize") or "").strip().lower()
+        money = 0 if raw in ("", "no", "none", "n/a") else int(re.sub(r"\D", "", raw) or 0)
         return (-money, int(p["number"]))
 
     openish.sort(key=rank)
-    chosen = openish[: a.limit]
+    chosen = openish[: a.limit] if a.limit else openish
     print(f"  {len(openish)} open · importing {len(chosen)}")
 
     st = Store(a.db)
-    added = skipped = 0
+    added = refreshed = kept = 0
     for p in chosen:
         slug = f"erdos-{p['number']}"
-        if st.problem(slug) is not None:
-            skipped += 1
+        existing = st.problem(slug)
+        if existing is not None and existing["status"] != "catalogued":
+            # Somebody has filed work against it; the catalogue does not get to
+            # overwrite that.
+            kept += 1
             continue
         bits = []
-        if p.get("prize"):
-            bits.append(f"Erdős prize {p['prize']}")
+        prize = (p.get("prize") or "").strip()
+        if prize and prize.lower() not in ("no", "none", "n/a", "0"):
+            bits.append(f"Erdős prize {prize}")
         if p.get("tags"):
             bits.append(", ".join(p["tags"]))
         seqs = [o for o in p.get("oeis", []) if o and o.upper() not in ("N/A", "NONE")]
@@ -104,10 +109,16 @@ def main(argv: list[str] | None = None) -> int:
             source_url=f"{SITE}/{p['number']}",
             status="catalogued",
             one_liner=" · ".join(bits) or None,
+            # space-separated for cheap filtering, so inner spaces become hyphens
+            tags=" ".join(sorted({t.strip().replace(" ", "-")
+                                  for t in p.get("tags", []) if t.strip()})) or None,
         )
-        added += 1
+        if existing is None:
+            added += 1
+        else:
+            refreshed += 1
     st.close()
-    print(f"  added {added}, already present {skipped}")
+    print(f"  added {added}, refreshed {refreshed}, left alone (has work) {kept}")
     print("  run `python -m cairn.sync export` to write them into ledger/")
     return 0
 

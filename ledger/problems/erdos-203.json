@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-203",
+  "title": "Erdős problem 203",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/203",
+  "status": "catalogued",
+  "one_liner": "primes, covering systems",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "covering-systems primes",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-365",
+  "title": "Erdős problem 365",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/365",
+  "status": "catalogued",
+  "one_liner": "number theory · OEIS A060355, A060859, A175155",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "number-theory",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

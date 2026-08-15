@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-1107",
+  "title": "Erdős problem 1107",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/1107",
+  "status": "catalogued",
+  "one_liner": "number theory, powerful · OEIS A056828, A392342, A392343, possible",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "number-theory powerful",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

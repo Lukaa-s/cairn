@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-44",
+  "title": "Erdős problem 44",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/44",
+  "status": "catalogued",
+  "one_liner": "number theory, sidon sets, additive combinatorics",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "additive-combinatorics number-theory sidon-sets",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

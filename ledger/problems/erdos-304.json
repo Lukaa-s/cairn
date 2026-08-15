@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-304",
+  "title": "Erdős problem 304",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/304",
+  "status": "catalogued",
+  "one_liner": "number theory, unit fractions · OEIS A097847, A097849",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "number-theory unit-fractions",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

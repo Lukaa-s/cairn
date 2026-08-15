@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-684",
+  "title": "Erdős problem 684",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/684",
+  "status": "catalogued",
+  "one_liner": "number theory, primes, binomial coefficients · OEIS A392019, possible",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "binomial-coefficients number-theory primes",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-766",
+  "title": "Erdős problem 766",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/766",
+  "status": "catalogued",
+  "one_liner": "graph theory, turan number · OEIS possible",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "graph-theory turan-number",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-323",
+  "title": "Erdős problem 323",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/323",
+  "status": "catalogued",
+  "one_liner": "number theory, powers · OEIS A004825, A004831, A004832, A004833, A004842, A004843, A004844",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "number-theory powers",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

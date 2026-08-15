@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-1137",
+  "title": "Erdős problem 1137",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/1137",
+  "status": "catalogued",
+  "one_liner": "number theory, primes · OEIS A083550, A005250",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "number-theory primes",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

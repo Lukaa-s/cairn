@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-945",
+  "title": "Erdős problem 945",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/945",
+  "status": "catalogued",
+  "one_liner": "number theory, divisors · OEIS possible, A048892",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "divisors number-theory",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-1204",
+  "title": "Erdős problem 1204",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/1204",
+  "status": "catalogued",
+  "one_liner": "number theory · OEIS A008407, A023193, A135311, possible",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "number-theory",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-60",
+  "title": "Erdős problem 60",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/60",
+  "status": "catalogued",
+  "one_liner": "graph theory, cycles · OEIS A006855",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "cycles graph-theory",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

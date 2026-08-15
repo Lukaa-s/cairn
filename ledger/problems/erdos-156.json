@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-156",
+  "title": "Erdős problem 156",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/156",
+  "status": "catalogued",
+  "one_liner": "sidon sets · OEIS A382397",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "sidon-sets",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}

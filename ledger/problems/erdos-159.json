@@ -1,0 +1,15 @@
+{
+  "slug": "erdos-159",
+  "title": "Erdős problem 159",
+  "statement": "",
+  "source_url": "https://www.erdosproblems.com/159",
+  "status": "catalogued",
+  "one_liner": "graph theory, ramsey theory · OEIS possible",
+  "state_of_the_art": null,
+  "honest_estimate": null,
+  "tags": "graph-theory ramsey-theory",
+  "fronts": [],
+  "results": [],
+  "strata": [],
+  "traps": []
+}
