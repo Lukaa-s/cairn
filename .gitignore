@@ -16,8 +16,5 @@ site.html
 cairn/site.py
 cairn/journal.py
 tokens.css
-# pushed by hand: an OAuth token needs the `workflow` scope to carry this
-.github/workflows/
-
 # derived cache; ledger/ is the source of truth and rebuilds it
 cairn.db

@@ -1,0 +1,59 @@
+name: Rebuild the site from the ledger
+
+# The ledger is text in git, so a merged pull request is a contribution and the
+# site has to follow it without anyone remembering to run a command. Any change
+# under ledger/ or to the generator rebuilds docs/ and commits it back; GitHub
+# Pages serves docs/ on main, so the public state updates on merge.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ledger/**"
+      - "cairn/**"
+      - "assets/**"
+      - ".github/workflows/site.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: site
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Rebuild the cache from the text ledger
+        run: python -m cairn.sync import
+
+      - name: Check the ledger round-trips
+        # An entry that cannot be re-exported byte-for-byte would silently drift
+        # from what a contributor wrote, so fail the build rather than publish it.
+        run: |
+          python -m cairn.sync export
+          git diff --exit-code -- ledger/ || {
+            echo "::error::ledger/ is not stable under import+export"; exit 1; }
+
+      - name: Build the site
+        run: python -m cairn.web
+
+      - name: Commit if the site moved
+        run: |
+          git config user.name "cairn-bot"
+          git config user.email "cairn-bot@users.noreply.github.com"
+          git add docs/
+          git diff --cached --quiet && { echo "site unchanged"; exit 0; }
+          git commit -m "site: rebuild from the ledger
+
+          Automated: docs/ regenerated after a ledger change.
+          Source commit ${GITHUB_SHA}."
+          git push
