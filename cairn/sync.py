@@ -6,6 +6,7 @@ is a cache rebuilt from it.
 
   ledger/problems/<slug>.json    the problem, its fronts, results, strata, traps
   ledger/entries/<slug>.jsonl    one JSON object per line, append-only
+  ledger/artifacts/ab/<sha>.z    the bytes, zlib-compressed, named by their hash
 
 JSON Lines for the entries is the whole trick: two agents appending different
 lines to the same file merge without a conflict, and an entry is never rewritten
@@ -13,9 +14,15 @@ once it is written. A campaign is then a pull request, which is how the
 mathematics community already reviews contributions, and the site rebuilds from
 the merge.
 
-Artifacts stay out of git. They are large, binary and content-addressed, and a
-repository is the wrong place for a hundred megabytes of solver logs; the ledger
-records their hash and size so a reader knows what exists and can ask its author.
+Artifacts go in too, which was worth measuring rather than fearing: content-
+addressed and compressed, a full eighteen-day campaign of 239 scripts, logs and
+pickles is 389 KiB. A thousand campaigns is 0.4 GB, which git carries without
+complaint. Storing the hash but not the bytes would have meant a reader who can
+see that a script exists and cannot run it, which is most of the value gone.
+
+Only genuinely large single files are held back (see MAX_INLINE). Those stay in
+the depositor's cache with their hash recorded, and the ledger says so plainly
+rather than pretending the bytes are there.
 
 Usage:
   python -m cairn.sync export      db  -> ledger/
@@ -36,9 +43,84 @@ from .store import Store, utcnow
 PROBLEM_FIELDS = ("slug", "title", "statement", "source_url", "status", "one_liner",
                   "state_of_the_art", "honest_estimate")
 
+# A single file above this is held back from git. Chosen from the real corpus:
+# the largest artifact in the reference campaign is 15 KiB, so this leaves three
+# orders of magnitude of headroom and still refuses a stray gigabyte.
+MAX_INLINE = 4 * 1024 * 1024
+
 
 def _rows(db, sql: str, *args) -> list[dict]:
     return [dict(r) for r in db.execute(sql, args)]
+
+
+def _blob_path(ledger: Path, sha: str) -> Path:
+    return ledger / "artifacts" / sha[:2] / f"{sha}.z"
+
+
+def export_artifacts(st: Store, ledger: Path) -> tuple[int, int, int]:
+    """Write every stored blob out under its hash. Returns (written, held, bytes)."""
+    written = held = total = 0
+    for row in st.db.execute("SELECT sha256,size,blob FROM artifacts"):
+        if row["size"] > MAX_INLINE:
+            held += 1
+            continue
+        dst = _blob_path(ledger, row["sha256"])
+        if dst.exists():
+            total += dst.stat().st_size
+            continue
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        dst.write_bytes(row["blob"])          # already zlib in the cache
+        written += 1
+        total += len(row["blob"])
+    return written, held, total
+
+
+def _artifact_names(ledger: Path) -> dict[str, str]:
+    """sha -> filename, recovered from the entries that reference the blob.
+
+    The blob is named by its hash, which is what makes it shareable, but a reader
+    handed `4f3a…` learns nothing. The entries already carry the name the
+    depositor used, so the mapping costs one pass over the ledger.
+    """
+    names: dict[str, str] = {}
+    for f in (ledger / "entries").glob("*.jsonl"):
+        for line in f.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            try:
+                rec = json.loads(line)
+            except Exception:
+                continue
+            for a in rec.get("artifacts", []):
+                if a.get("sha256") and a.get("name"):
+                    names.setdefault(a["sha256"], a["name"])
+    return names
+
+
+def import_artifacts(st: Store, ledger: Path) -> int:
+    """Load blobs the depositor shared but this cache has never seen."""
+    import zlib
+
+    adir = ledger / "artifacts"
+    if not adir.is_dir():
+        return 0
+    names = _artifact_names(ledger)
+    added = 0
+    for f in adir.rglob("*.z"):
+        sha = f.stem
+        if st.artifact_meta(sha):
+            continue
+        try:
+            raw = zlib.decompress(f.read_bytes())
+        except Exception:
+            continue
+        name = names.get(sha)
+        kind = {"py": "script", "log": "log", "jsonl": "data", "json": "data",
+                "pkl": "data", "md": "note", "txt": "note"}.get(
+                    (name or "").rsplit(".", 1)[-1], "data")
+        st.put_artifact(raw, kind=kind, filename=name)
+        added += 1
+    return added
 
 
 def export(db_path: Path, ledger: Path, verbose: bool = True) -> int:
@@ -90,12 +172,23 @@ def export(db_path: Path, ledger: Path, verbose: bool = True) -> int:
         if verbose:
             print(f"  {slug}: {len(doc['fronts'])} fronts · {len(doc['results'])} results "
                   f"· {len(lines)} entries")
+    w, held, total = export_artifacts(st, ledger)
+    if verbose:
+        msg = f"  artifacts: +{w} written, {total/1024:.0f} KiB on disk"
+        if held:
+            msg += f" · {held} too large to share, recorded by hash only"
+        print(msg)
     st.close()
     return n
 
 
 def import_(ledger: Path, db_path: Path, verbose: bool = True) -> int:
     st = Store(db_path)
+    # Blobs first: an entry links to its artifacts by hash, and the link is only
+    # made for hashes the cache already holds.
+    got = import_artifacts(st, ledger)
+    if verbose and got:
+        print(f"  artifacts: +{got} loaded")
     n = 0
     for f in sorted((ledger / "problems").glob("*.json")):
         doc = json.loads(f.read_text(encoding="utf-8"))
@@ -189,7 +282,9 @@ def main(argv: list[str] | None = None) -> int:
         n_p = len(list((a.ledger / "problems").glob("*.json")))
         n_e = sum(len([x for x in f.read_text().splitlines() if x.strip()])
                   for f in (a.ledger / "entries").glob("*.jsonl"))
-        print(f"ledger: {n_p} problems · {n_e} entries")
+        blobs = list((a.ledger / "artifacts").rglob("*.z")) if (a.ledger / "artifacts").is_dir() else []
+        size = sum(b.stat().st_size for b in blobs) / 1024
+        print(f"ledger: {n_p} problems · {n_e} entries · {len(blobs)} artifacts ({size:.0f} KiB)")
         print(f"cache : {'present' if a.db.exists() else 'absent, will be rebuilt on first run'}")
     return 0
 

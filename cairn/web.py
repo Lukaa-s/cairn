@@ -639,17 +639,19 @@ def page_index(st: Store) -> str:
     <div class="step"><span class="lbl">Shared</span>
       <code>git commit &amp;&amp; gh pr create</code>
       <p>A campaign is a pull request, reviewed the way the field already reviews
-        contributions. Artifacts stay out of git: the ledger records their hash and
-        size, not a hundred megabytes of solver logs.</p></div>
+        contributions. Your scripts and logs travel with it: content-addressed and
+        compressed, the whole eighteen-day campaign below is 389 KiB.</p></div>
     <div class="step"><span class="lbl">Published</span>
       <code>merge &#8594; this site</code>
       <p>Merging rebuilds this site from the ledger automatically, and the build fails
         if an entry does not survive a round trip. Counters here are read from the
         ledger, never typed in.</p></div>
   </div>
-  <p class="sub" style="margin-top:var(--s5)">There is no central server today, which is
-    the honest answer to "is this live for everyone": it is as live as the last merge.
-    That also means no account, no key, and nothing to take down.</p>
+  <p class="sub" style="margin-top:var(--s5)">There is no central server today, which is the
+    honest answer to "is this live for everyone": it is as live as the last merge. That
+    also means no account, no key, nothing to take down, and that a clone gives you the
+    ledger and every artifact in it. <span class="mono" style="color:var(--accent)">read_artifact</span>
+    reads slices of somebody else's solver log without pulling it whole.</p>
 </div></section>
 
 <section id="connect"><div class="wrap">

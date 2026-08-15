@@ -15,32 +15,44 @@ It solves nothing and validates no proof.
 
 ## Run it
 
-```bash
-python3 -m venv .venv && ./.venv/bin/pip install "mcp>=2.0.0"
-./.venv/bin/python tests/test_e2e.py        # 41 checks
-```
-
-In the client's MCP configuration:
+One line in the client's MCP configuration. Nothing to clone, nothing to install:
 
 ```json
 {
   "mcpServers": {
     "cairn": {
-      "type": "stdio",
-      "command": "/path/to/cairn/.venv/bin/python",
-      "args": ["-m", "cairn.server"],
-      "env": { "CAIRN_DB": "/path/to/cairn/cairn.db" }
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/Lukaa-s/cairn", "cairn-mcp"]
     }
   }
 }
 ```
 
-And the companion skill, which teaches the judgement the tool descriptions
-cannot carry:
+To contribute back, work from a clone, and take the companion skill with you —
+it teaches the judgement the tool descriptions cannot carry:
 
 ```bash
+git clone https://github.com/Lukaa-s/cairn && cd cairn
 cp -r skills/cairn ~/.claude/skills/cairn      # or .claude/skills/ per project
 ```
+
+The database is a cache. It is rebuilt from `ledger/` the first time the server
+starts, so a clone is enough.
+
+## How your work reaches other people
+
+The ledger is text in this repository, not a service you have to trust:
+
+```
+ledger/problems/<slug>.json    the problem, its fronts, results, strata, traps
+ledger/entries/<slug>.jsonl    one JSON object per line, append-only
+ledger/artifacts/ab/<sha>.z    the bytes, compressed, named by their hash
+```
+
+JSON Lines is the whole trick: two contributors appending different findings to
+the same problem merge without a conflict. Your agent writes locally, you open a
+pull request, and merging rebuilds the site from the ledger. It is as live as the
+last merge, which also means no account, no key, and nothing to take down.
 
 ## The loop
 
@@ -99,7 +111,8 @@ the context window of whoever reads next.
 - **Token-budgeted responses** — what gets cut is announced, never silently
   truncated.
 - **Content-addressed, compressed artifacts** — two deposits of the same
-  30 000-line log cost one copy; reading is by slice.
+  30 000-line log cost one copy, they travel with the ledger in git, and reading
+  is by slice. A clone gives you every script another contributor produced.
 - **Simhash at write time** — the near-duplicate is caught on entry.
 
 Measured on the reference campaign: 239 artifacts, 1 053 KiB → 389 KiB, and
@@ -116,7 +129,8 @@ better to learn that there than on a live one.
 ## The site
 
 ```bash
-./.venv/bin/python -m cairn.web        # regenerates docs/ from the database
+python -m cairn.sync import      # ledger/ -> cache
+python -m cairn.web              # cache  -> docs/
 ```
 
 Generated from SQLite, so the page cannot drift from the ledger. Set in **Latin
@@ -153,8 +167,17 @@ PRODUCT.md           product truth; lists what must never be invented
 
 ## Known limits
 
+Artifacts live in git, which the numbers support rather than contradict: a
+full campaign is 389 KiB compressed, so a thousand of them is 0.4 GB. Single
+files above 4 MB are held back and recorded by hash only. If that ever stops
+being true the layout is already content-addressed, so it moves to object
+storage without touching the ledger.
+
 `put_artifact` reads an arbitrary local path: the right trade-off for a stdio
 server launched by its owner, to revisit before any shared deployment.
-Authentication and multi-user are not addressed — the ledger is single-instance.
-Authorship and licensing of contributions are undecided, as is federation with
-Terence Tao's `problems.yaml`.
+
+Sharing goes through pull requests, so there is no live coordination: two agents
+can claim the same front in the window between a clone and a merge. Closing that
+needs a remote MCP endpoint and a small server, and the trigger for it is
+concurrency, not size. Authorship and licensing of contributions are undecided,
+as is federation with Terence Tao's `problems.yaml`.
