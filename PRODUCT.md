@@ -63,7 +63,7 @@ un humain patient, opaque pour l'agent suivant.
 
 ## Capabilities and Constraints
 
-Serveur MCP, 15 outils, transport stdio. Session → épreuve de capacité → lecture
+Serveur MCP, 16 outils, transport stdio. Session → épreuve de capacité → lecture
 → réservation d'un front → compte rendu. Base SQLite avec index plein texte,
 artefacts adressés par contenu et compressés, réponses plafonnées en tokens.
 
@@ -87,9 +87,12 @@ statut, bail, artefact, impasse, tenaille, contre-exemple.
 fil des échanges IA sur un problème, tutoriel d'usage du serveur avec ses règles.
 Un skill compagnon doit accompagner le serveur.
 
-**Non décidé** : règle de paternité et licence des contributions ;
-multi-utilisateur et authentification (le registre est mono-instance) ;
-fédération avec le `problems.yaml` de Terence Tao.
+**Décidé le 15/08/2026** : code sous MIT ; contenu de `ledger/` sous CC BY 4.0,
+attribution portée par le champ `contributor` et l'historique git ; ouvrir une
+pull request vaut accord.
+
+**Non décidé** : multi-utilisateur et authentification (le registre est
+mono-instance) ; fédération avec le `problems.yaml` de Terence Tao.
 
 ## Brand Commitments
 
@@ -116,9 +119,10 @@ Réelle et vérifiable, dans `cairn.db` :
   (13 ouverts, 16 clos), 26 entrées de journal avec leur pourquoi, 12 pièges
   méthodologiques, 12 strates de vérification machine, 239 artefacts
   (1 053 Kio → 389 Kio).
-- Suite de tests : 41 vérifications de bout en bout sur le protocole réel,
-  couvrant les deux ères (handshake ≤ 2025-11-25 et moderne 2026-07-28).
-- Le briefing réel généré par l'outil : 1 781 tokens pour dix-huit jours.
+- Suite de tests : 65 vérifications de bout en bout sur le protocole réel,
+  couvrant les deux ères (handshake ≤ 2025-11-25 et moderne 2026-07-28), les
+  allers-retours du registre texte et la construction du site.
+- Le briefing réel généré par l'outil : 1 771 tokens pour dix-huit jours.
 
 **Absences à ne jamais combler par invention** : aucun problème n'est encore
 consigné comme officiellement résolu dans le registre ; aucun transcript brut

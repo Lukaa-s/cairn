@@ -28,6 +28,11 @@ One line in the client's MCP configuration. Nothing to clone, nothing to install
 }
 ```
 
+Installed this way, the server carries a snapshot of the ledger inside the
+package — as live as the last `uvx` fetch — keeps its cache under
+`~/.cache/cairn/`, and exports anything you write to `~/.local/share/cairn/ledger/`
+as plain text, so a contribution made from the one-liner is never stranded.
+
 To contribute back, work from a clone, and take the companion skill with you —
 it teaches the judgement the tool descriptions cannot carry:
 
@@ -36,8 +41,9 @@ git clone https://github.com/Lukaa-s/cairn && cd cairn
 cp -r skills/cairn ~/.claude/skills/cairn      # or .claude/skills/ per project
 ```
 
-The database is a cache. It is rebuilt from `ledger/` the first time the server
-starts, so a clone is enough.
+In a clone, the database is a cache: it is rebuilt from `ledger/` the first time
+the server starts, and every write is exported back to `ledger/` as text ready
+for a pull request.
 
 ## How your work reaches other people
 
@@ -50,8 +56,11 @@ ledger/artifacts/ab/<sha>.z    the bytes, compressed, named by their hash
 ```
 
 JSON Lines is the whole trick: two contributors appending different findings to
-the same problem merge without a conflict. Your agent writes locally, you open a
-pull request, and merging rebuilds the site from the ledger. It is as live as the
+the same problem merge without a conflict, and every new entry carries a `uid`
+so even a deliberate near-duplicate keeps its own identity through a merge.
+Leases travel too: a claimed front is visible to anyone who pulls, not only to
+the instance that claimed it. Your agent writes locally, you open a pull
+request, and merging rebuilds the site from the ledger. It is as live as the
 last merge, which also means no account, no key, and nothing to take down.
 
 ## The loop
@@ -75,7 +84,9 @@ entry drops to `measured`. "The machine found no counterexample for n ≤ 13" an
 
 **Near-duplicates are intercepted** by simhash over (summary + why), with
 `force=true` when the distinction is real. **Leases expire**: a claimed front
-that is abandoned frees itself.
+that is abandoned frees itself, and only its holder can release it early.
+**An unknown artifact handle is a refusal**, not a dangling reference: handles
+are resolved (a unique 8-character prefix is enough) before anything is written.
 
 In the standing, `dead-end` and `refute` weigh more than `advance`. Deliberately:
 a documented dead end is rarer and more useful than another maybe.
@@ -116,7 +127,7 @@ the context window of whoever reads next.
 - **Simhash at write time** — the near-duplicate is caught on entry.
 
 Measured on the reference campaign: 239 artifacts, 1 053 KiB → 389 KiB, and
-eighteen days rendered in 1 781 tokens.
+eighteen days rendered in 1 771 tokens.
 
 ## The test corpus
 
@@ -153,6 +164,7 @@ Latin Modern Math under an explicit `unicode-range`.
 
 ```
 cairn/store.py       SQLite, FTS5, artifacts, simhash
+cairn/sync.py        the ledger as text; git is the shared database
 cairn/render.py      token-budgeted rendering
 cairn/challenge.py   capability challenges
 cairn/identity.py    client reading, attestation probe, admission
@@ -161,7 +173,7 @@ cairn/seed.py        loading a campaign
 cairn/web.py         site generation
 tools/build_fonts.py font subsetting, with the math-face routing
 skills/cairn/        the companion skill
-tests/test_e2e.py    41 checks against the real protocol
+tests/test_e2e.py    65 checks against the real protocol
 PRODUCT.md           product truth; lists what must never be invented
 ```
 
@@ -176,8 +188,14 @@ storage without touching the ledger.
 `put_artifact` reads an arbitrary local path: the right trade-off for a stdio
 server launched by its owner, to revisit before any shared deployment.
 
-Sharing goes through pull requests, so there is no live coordination: two agents
-can claim the same front in the window between a clone and a merge. Closing that
-needs a remote MCP endpoint and a small server, and the trigger for it is
-concurrency, not size. Authorship and licensing of contributions are undecided,
-as is federation with Terence Tao's `problems.yaml`.
+Sharing goes through pull requests, so coordination is as live as the last
+merge: leases travel with the ledger, but two agents can still claim the same
+front in the window between a clone and a merge. Closing that window needs a
+remote MCP endpoint and a small server, and the trigger for it is concurrency,
+not size. Federation with Terence Tao's `problems.yaml` is an open question.
+
+## Licence
+
+Code under MIT. The contents of `ledger/` are CC BY 4.0: attribution is the
+`contributor` field each entry carries plus the git history, and opening a pull
+request against `ledger/` is agreement to those terms. Both are in `LICENSE`.

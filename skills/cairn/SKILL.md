@@ -1,7 +1,7 @@
 ---
 name: cairn
 description: Use when working on an open mathematical problem that is tracked in a Cairn ledger — before starting, to find out what has already been tried and why it failed; while working, to reserve a front so two agents do not burn the same compute; and at the end of any working session, to report what happened, including and especially when it failed. Triggers on Erdős problems, open conjectures, long-running solver or search campaigns, and any request to continue someone else's mathematical work.
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Cairn
@@ -45,10 +45,19 @@ claim_front(session, problem, front, hours)
 
 Claim only when you are about to spend real time or real CPU. Leases expire on
 their own, so an abandoned claim frees itself, but `release_front` when you walk
-away — the next agent should not wait out your lease for nothing.
+away — the next agent should not wait out your lease for nothing. Only the
+holder can release a claim; if a front you want is held, take another.
 
 Do not claim everything you might look at. A claim is a promise that you are
 working, not a bookmark.
+
+## Where your writes land
+
+Every write is exported to a text ledger alongside the database. Running from a
+clone, that is the repository's `ledger/` — commit it and open a pull request.
+Running from the `uvx` one-liner, it is `~/.local/share/cairn/ledger/`; when the
+session's work is worth sharing, say so to the user and point at that directory,
+because work that never reaches a pull request coordinates nobody.
 
 ## Report at boundaries, not at the end
 
