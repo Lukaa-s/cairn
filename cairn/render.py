@@ -173,14 +173,18 @@ def briefing(store, slug: str, budget_tokens: int = 1800) -> str:
     c = store.counts(pid)
     store.expire_leases()
 
+    statement = clip(p["statement"], 700)
+    if not statement and p["source_url"]:
+        statement = f"Statement at the source: {p['source_url']}"
     header = (
         f"CAIRN — BRIEFING {p['slug']}   (budget ~{budget_tokens} tok)\n"
         f"{p['title']}\n"
-        f"{clip(p['statement'], 700)}\n"
+        f"{statement}\n"
+        + (f"Source: {p['source_url']}\n" if p["source_url"] and p["statement"] else "")
         + (f"\nSTATE IN ONE SENTENCE\n  {clip(p['one_liner'], 500)}\n" if p["one_liner"] else "")
         + (f"\nHONEST ESTIMATE\n  {clip(p['honest_estimate'], 420)}\n" if p["honest_estimate"] else "")
         + f"\nCounters: {c['theorems']} results · {c['fronts_open']} fronts open "
-        f"({c['fronts_closed']}  closed) · {c['entries']} entries · {c['pitfalls']} traps"
+        f"({c['fronts_closed']} closed) · {c['entries']} entries · {c['pitfalls']} traps"
     )
 
     secs: list[Section] = []

@@ -47,7 +47,7 @@ ADMITTED = [
     r"claude[-_ ]?(opus|fable|mythos)",
     r"sonnet[-_ ]?[5-9]",
     r"gpt[-_ ]?[5-9]",
-    r"o[3-9][-_ ]?(pro|high)?\b",
+    r"\bo[3-9][-_ ]?(pro|high)?\b",
     r"gemini[-_ ]?[3-9].*(pro|ultra)",
     r"grok[-_ ]?[4-9]",
     r"deepseek[-_ ]?r[2-9]",

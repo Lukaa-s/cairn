@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -42,6 +43,33 @@ from .store import Store, utcnow
 
 PROBLEM_FIELDS = ("slug", "title", "statement", "source_url", "status", "one_liner",
                   "state_of_the_art", "honest_estimate", "tags")
+
+# The claim fields travel with the ledger on purpose: a lease that only exists in
+# one contributor's cache coordinates nobody. They are written only when a front
+# is actually claimed, so the hundreds of untouched problem files never change.
+FRONT_FIELDS = ("key", "title", "rationale", "cost", "gain", "status", "priority",
+                "closed_reason", "closed_at")
+FRONT_CLAIM_FIELDS = ("claimed_by", "claimed_at", "lease_expires")
+
+
+def default_paths(pkg_dir: Path | None = None) -> tuple[Path, Path, Path | None]:
+    """(db, ledger, bundled_seed) for this process.
+
+    Two worlds. In a checkout, everything lives at the repo root and there is no
+    seed. Installed as a wheel (the `uvx` one-liner), the repo layout is gone:
+    the ledger snapshot ships inside the package as `_ledger`, the cache goes to
+    XDG_CACHE_HOME, and writes are exported to a ledger under XDG_DATA_HOME so a
+    contributor's work survives the uv cache being dropped and can be diffed
+    against a clone when they decide to open a pull request.
+    """
+    pkg = pkg_dir or Path(__file__).resolve().parent
+    root = pkg.parent
+    if (root / "ledger").is_dir() or (root / ".git").exists():
+        return root / "cairn.db", root / "ledger", None
+    seed = pkg / "_ledger"
+    cache = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "cairn"
+    data = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share") / "cairn"
+    return cache / "cairn.db", data / "ledger", seed if seed.is_dir() else None
 
 # A single file above this is held back from git. Chosen from the real corpus:
 # the largest artifact in the reference campaign is 15 KiB, so this leaves three
@@ -123,17 +151,26 @@ def import_artifacts(st: Store, ledger: Path) -> int:
     return added
 
 
-def export(db_path: Path, ledger: Path, verbose: bool = True) -> int:
+def export(db_path: Path, ledger: Path, verbose: bool = True, only: str | None = None) -> int:
+    """Write the cache out as text. `only` limits the pass to one problem's files,
+    which is what the server uses after a write: rewriting six hundred untouched
+    files per report would be churn pretending to be safety."""
     st = Store(db_path)
     (ledger / "problems").mkdir(parents=True, exist_ok=True)
     (ledger / "entries").mkdir(parents=True, exist_ok=True)
     n = 0
-    for p in st.db.execute("SELECT * FROM problems ORDER BY slug"):
+    sql = "SELECT * FROM problems" + (" WHERE slug=?" if only else "") + " ORDER BY slug"
+    for p in st.db.execute(sql, (only,) if only else ()):
         pid, slug = p["id"], p["slug"]
         doc: dict[str, Any] = {k: p[k] for k in PROBLEM_FIELDS}
-        doc["fronts"] = _rows(st.db,
-            "SELECT key,title,rationale,cost,gain,status,priority,closed_reason,closed_at "
-            "FROM fronts WHERE problem_id=? ORDER BY priority,key", pid)
+        doc["fronts"] = []
+        for f in st.db.execute(
+            "SELECT * FROM fronts WHERE problem_id=? ORDER BY priority,key", (pid,)
+        ):
+            fr = {k: f[k] for k in FRONT_FIELDS}
+            if f["claimed_by"]:
+                fr |= {k: f[k] for k in FRONT_CLAIM_FIELDS}
+            doc["fronts"].append(fr)
         doc["results"] = _rows(st.db,
             "SELECT key,name,statement,status,proof_location,scope "
             "FROM theorems WHERE problem_id=? ORDER BY key", pid)
@@ -147,27 +184,29 @@ def export(db_path: Path, ledger: Path, verbose: bool = True) -> int:
 
         lines = []
         for row in st.db.execute(
-            "SELECT e.at,e.verdict,e.statut,e.summary,e.why,e.contributor,f.key AS front "
+            "SELECT e.id,e.at,e.verdict,e.statut,e.summary,e.why,e.contributor,e.uid,"
+            "f.key AS front "
             "FROM entries e LEFT JOIN fronts f ON f.id=e.front_id "
             "WHERE e.problem_id=? ORDER BY e.at, e.id", (pid,)
         ):
             rec = {k: row[k] for k in ("at", "verdict", "statut", "summary", "why",
-                                       "contributor", "front") if row[k] is not None}
+                                       "contributor", "front", "uid") if row[k] is not None}
             arts = [
                 {"sha256": a["sha256"], "name": a["filename"], "bytes": a["size"],
                  "lines": a["lines"]}
                 for a in st.db.execute(
                     "SELECT a.sha256,a.filename,a.size,a.lines FROM entry_artifacts ea "
-                    "JOIN artifacts a ON a.sha256=ea.sha256 "
-                    "JOIN entries e ON e.id=ea.entry_id "
-                    "WHERE e.problem_id=? AND e.at=? AND e.summary=?",
-                    (pid, row["at"], row["summary"]))
+                    "JOIN artifacts a ON a.sha256=ea.sha256 WHERE ea.entry_id=?",
+                    (row["id"],))
             ]
             if arts:
                 rec["artifacts"] = arts
             lines.append(json.dumps(rec, ensure_ascii=False, sort_keys=True))
-        (ledger / "entries" / f"{slug}.jsonl").write_text(
-            "\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+        ef = ledger / "entries" / f"{slug}.jsonl"
+        if lines:
+            ef.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        # A problem with no entries gets no .jsonl at all: six hundred empty
+        # files say nothing that the absence of a file does not.
         n += 1
         if verbose:
             print(f"  {slug}: {len(doc['fronts'])} fronts · {len(doc['results'])} results "
@@ -228,21 +267,30 @@ def import_(ledger: Path, db_path: Path, verbose: bool = True) -> int:
         if ef.exists():
             fronts = {r["key"]: r["id"] for r in st.db.execute(
                 "SELECT key,id FROM fronts WHERE problem_id=?", (pid,))}
-            have = {(r["at"], r["summary"]) for r in st.db.execute(
-                "SELECT at,summary FROM entries WHERE problem_id=?", (pid,))}
+            # Identity of an entry: its uid when it carries one, (date, summary)
+            # for lines written before uids existed. The uid is what lets a
+            # force=true near-duplicate survive a round trip through git instead
+            # of being folded into the entry it deliberately resembles.
+            have_uid = {r["uid"] for r in st.db.execute(
+                "SELECT uid FROM entries WHERE problem_id=? AND uid IS NOT NULL", (pid,))}
+            have_pair = {(r["at"], r["summary"]) for r in st.db.execute(
+                "SELECT at,summary FROM entries WHERE problem_id=? AND uid IS NULL", (pid,))}
             added = 0
             for line in ef.read_text(encoding="utf-8").splitlines():
                 if not line.strip():
                     continue
                 rec = json.loads(line)
-                if (rec.get("at"), rec.get("summary")) in have:
+                uid = rec.get("uid")
+                seen = (uid in have_uid) if uid else \
+                       ((rec.get("at"), rec.get("summary")) in have_pair)
+                if seen:
                     continue
                 shas = [a["sha256"] for a in rec.get("artifacts", [])
                         if st.artifact_meta(a["sha256"])]
                 st.add_entry(pid, slug, front_id=fronts.get(rec.get("front") or ""),
                              verdict=rec["verdict"], statut=rec["statut"],
                              summary=rec["summary"], why=rec["why"], at=rec.get("at"),
-                             contributor=rec.get("contributor"), artifacts=shas)
+                             contributor=rec.get("contributor"), artifacts=shas, uid=uid)
                 added += 1
             if verbose:
                 print(f"  {slug}: +{added} entries")
@@ -251,22 +299,29 @@ def import_(ledger: Path, db_path: Path, verbose: bool = True) -> int:
     return n
 
 
-def ensure_db(db_path: Path, ledger: Path) -> None:
-    """Build the cache from the ledger when it is missing or older than the text."""
-    if not ledger.is_dir():
+def ensure_db(db_path: Path, ledger: Path, seed: Path | None = None) -> None:
+    """Build the cache when it is missing or older than the text.
+
+    `seed` is the ledger snapshot bundled inside an installed wheel. It loads
+    first so the user's own ledger, if any, wins on anything they touched.
+    """
+    sources = [d for d in (seed, ledger) if d is not None and d.is_dir()]
+    if not sources:
         return
-    newest = max((p.stat().st_mtime for p in ledger.rglob("*") if p.is_file()), default=0)
+    newest = max((p.stat().st_mtime for d in sources for p in d.rglob("*") if p.is_file()),
+                 default=0)
     if db_path.exists() and db_path.stat().st_mtime >= newest:
         return
-    import_(ledger, db_path, verbose=False)
+    for d in sources:
+        import_(d, db_path, verbose=False)
 
 
 def main(argv: list[str] | None = None) -> int:
-    root = Path(__file__).resolve().parent.parent
+    db_default, ledger_default, _ = default_paths()
     ap = argparse.ArgumentParser(description="Move the ledger between text and cache.")
     ap.add_argument("action", choices=["export", "import", "status"])
-    ap.add_argument("--db", type=Path, default=root / "cairn.db")
-    ap.add_argument("--ledger", type=Path, default=root / "ledger")
+    ap.add_argument("--db", type=Path, default=db_default)
+    ap.add_argument("--ledger", type=Path, default=ledger_default)
     a = ap.parse_args(argv)
 
     if a.action == "export":

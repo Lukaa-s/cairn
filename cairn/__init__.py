@@ -1,3 +1,8 @@
 """Cairn — a shared ledger for AI-assisted mathematical research."""
 
-__version__ = "0.1.0"
+from importlib.metadata import PackageNotFoundError, version
+
+try:
+    __version__ = version("cairn-mcp")
+except PackageNotFoundError:  # running from a checkout, not an install
+    __version__ = "0.3.0"

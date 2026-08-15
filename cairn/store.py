@@ -229,6 +229,16 @@ class Store:
         cols = {r[1] for r in self.db.execute("PRAGMA table_info(problems)")}
         if "tags" not in cols:
             self.db.execute("ALTER TABLE problems ADD COLUMN tags TEXT")
+        ecols = {r[1] for r in self.db.execute("PRAGMA table_info(entries)")}
+        if "uid" not in ecols:
+            # The uid is the entry's identity across git merges. Older rows keep
+            # NULL and stay identified by (date, summary), so re-importing a
+            # ledger written before uids existed changes nothing.
+            self.db.execute("ALTER TABLE entries ADD COLUMN uid TEXT")
+        self.db.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_entries_uid ON entries(uid) "
+            "WHERE uid IS NOT NULL"
+        )
         self.db.execute(
             "INSERT OR REPLACE INTO meta(k,v) VALUES('schema_version',?)", (str(SCHEMA_VERSION),)
         )
@@ -333,13 +343,15 @@ class Store:
     def upsert_front(self, problem_id: int, slug: str, **kw: Any) -> int:
         self.db.execute(
             """INSERT INTO fronts(problem_id,key,title,rationale,cost,gain,status,priority,
-                 closed_reason,closed_at,created_at)
+                 closed_reason,closed_at,claimed_by,claimed_at,lease_expires,created_at)
                VALUES(:pid,:key,:title,:rationale,:cost,:gain,:status,:priority,
-                 :closed_reason,:closed_at,:now)
+                 :closed_reason,:closed_at,:claimed_by,:claimed_at,:lease_expires,:now)
                ON CONFLICT(problem_id,key) DO UPDATE SET
                  title=excluded.title, rationale=excluded.rationale, cost=excluded.cost,
                  gain=excluded.gain, status=excluded.status, priority=excluded.priority,
-                 closed_reason=excluded.closed_reason, closed_at=excluded.closed_at""",
+                 closed_reason=excluded.closed_reason, closed_at=excluded.closed_at,
+                 claimed_by=excluded.claimed_by, claimed_at=excluded.claimed_at,
+                 lease_expires=excluded.lease_expires""",
             {
                 "pid": problem_id,
                 "key": kw["key"],
@@ -351,6 +363,9 @@ class Store:
                 "priority": kw.get("priority", 100),
                 "closed_reason": kw.get("closed_reason"),
                 "closed_at": kw.get("closed_at"),
+                "claimed_by": kw.get("claimed_by"),
+                "claimed_at": kw.get("claimed_at"),
+                "lease_expires": kw.get("lease_expires"),
                 "now": utcnow(),
             },
         )
@@ -373,10 +388,12 @@ class Store:
         ).fetchone()
 
     def expire_leases(self) -> int:
+        # A claimed front with no lease at all can only come from a hand-edited
+        # or pre-lease ledger file; freeing it beats a claim nobody can outwait.
         now = utcnow()
         cur = self.db.execute(
             "UPDATE fronts SET status='open', claimed_by=NULL, claimed_at=NULL, lease_expires=NULL "
-            "WHERE status='claimed' AND lease_expires IS NOT NULL AND lease_expires < ?",
+            "WHERE status='claimed' AND (lease_expires IS NULL OR lease_expires < ?)",
             (now,),
         )
         self.db.commit()
@@ -427,26 +444,39 @@ class Store:
         session_id: str | None = None,
         contributor: str | None = None,
         artifacts: Sequence[str] = (),
+        uid: str | None = None,
     ) -> int:
         if verdict not in VERDICTS:
             raise ValueError(f"verdict must be one of {VERDICTS}")
         if statut not in STATUTS:
             raise ValueError(f"statut must be one of {STATUTS}")
-        cur = self.db.execute(
-            """INSERT INTO entries(problem_id,front_id,session_id,contributor,at,verdict,statut,
-                 summary,why,simhash,created_at)
-               VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
-            (problem_id, front_id, session_id, contributor, at or today(), verdict, statut,
-             summary, why, simhash(summary + " " + why), utcnow()),
-        )
-        eid = int(cur.lastrowid)
-        for sha in artifacts:
-            self.db.execute(
-                "INSERT OR IGNORE INTO entry_artifacts(entry_id,sha256) VALUES(?,?)", (eid, sha)
+        # Validate the attachment handles before touching the entries table, so a
+        # typo in a hash is a clean refusal rather than a half-written entry the
+        # next commit silently carries.
+        missing = [s for s in artifacts if self.artifact_meta(s) is None]
+        if missing:
+            raise KeyError(f"unknown artifact handle(s): {', '.join(m[:16] for m in missing)}. "
+                           "Deposit with put_artifact and pass back the sha256 it returns.")
+        try:
+            cur = self.db.execute(
+                """INSERT INTO entries(problem_id,front_id,session_id,contributor,at,verdict,
+                     statut,summary,why,simhash,uid,created_at)
+                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (problem_id, front_id, session_id, contributor, at or today(), verdict, statut,
+                 summary, why, simhash(summary + " " + why), uid, utcnow()),
             )
-        self.index(f"entry:{eid}", slug, "entry", summary, why)
-        if contributor:
-            self._score(contributor, verdict, statut)
+            eid = int(cur.lastrowid)
+            for sha in artifacts:
+                self.db.execute(
+                    "INSERT OR IGNORE INTO entry_artifacts(entry_id,sha256) VALUES(?,?)",
+                    (eid, sha)
+                )
+            self.index(f"entry:{eid}", slug, "entry", summary, why)
+            if contributor:
+                self._score(contributor, verdict, statut)
+        except Exception:
+            self.db.rollback()
+            raise
         self.db.commit()
         return eid
 
@@ -513,6 +543,23 @@ class Store:
         self.db.commit()
         return {"sha256": sha, "size": len(content), "stored": len(blob),
                 "lines": lines, "deduplicated": False}
+
+    def resolve_artifact(self, handle: str) -> str:
+        """A full sha256 for a handle, accepting a unique prefix of >= 8 chars.
+
+        Raises KeyError when nothing (or more than one thing) matches: tools
+        display shortened hashes, so a model echoing one back is normal and has
+        to either work or fail loudly, never attach the wrong file.
+        """
+        h = (handle or "").strip().lower()
+        if len(h) < 8 or any(c not in "0123456789abcdef" for c in h):
+            raise KeyError(f"not an artifact handle: '{handle}' (sha256 hex, >= 8 chars)")
+        rows = self.db.execute(
+            "SELECT sha256 FROM artifacts WHERE sha256 LIKE ? LIMIT 2", (h + "%",)
+        ).fetchall()
+        if len(rows) != 1:
+            raise KeyError(f"artifact not found, or ambiguous prefix: {handle}")
+        return rows[0]["sha256"]
 
     def artifact_meta(self, sha: str) -> sqlite3.Row | None:
         return self.db.execute(

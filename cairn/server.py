@@ -30,40 +30,45 @@ from typing import Annotated, Any
 from mcp.server.mcpserver import Context, MCPServer
 from pydantic import Field
 
+from . import __version__
 from . import challenge as chal
 from . import identity as ident
 from . import render
 from .store import COSTS, STATUTS, VERDICTS, Store, utcnow
+from .sync import default_paths, ensure_db, export
 
-DB_PATH = os.environ.get("CAIRN_DB") or str(Path(__file__).resolve().parent.parent / "cairn.db")
+_DB_DEFAULT, _LEDGER_DEFAULT, LEDGER_SEED = default_paths()
+DB_PATH = os.environ.get("CAIRN_DB") or str(_DB_DEFAULT)
+LEDGER = Path(os.environ.get("CAIRN_LEDGER") or _LEDGER_DEFAULT)
 _store: Store | None = None
 
 MIN_WHY = 40
 DEFAULT_LEASE_HOURS = 24
 
 
-LEDGER = Path(os.environ.get("CAIRN_LEDGER") or Path(__file__).resolve().parent.parent / "ledger")
-
-
 def store() -> Store:
-    """The database is a cache; `ledger/` is the shared source of truth."""
+    """The database is a cache; the text ledger is the shared source of truth.
+
+    In a checkout that is `ledger/` at the repo root. Installed as a wheel it is
+    the snapshot bundled inside the package, overlaid with whatever this user has
+    already written to their own ledger under XDG_DATA_HOME.
+    """
     global _store
     if _store is None:
         try:
-            from .sync import ensure_db
-            ensure_db(Path(DB_PATH), LEDGER)
+            Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
+            ensure_db(Path(DB_PATH), LEDGER, seed=LEDGER_SEED)
         except Exception as exc:  # a stale cache is better than no server
             print(f"cairn: could not rebuild cache from ledger ({exc})", file=sys.stderr)
         _store = Store(DB_PATH)
     return _store
 
 
-def _publish() -> None:
+def _publish(only: str | None = None) -> None:
     """Write the change back out to the text ledger so git can carry it."""
     try:
-        from .sync import export
         if LEDGER.is_dir() or not LEDGER.exists():
-            export(Path(DB_PATH), LEDGER, verbose=False)
+            export(Path(DB_PATH), LEDGER, verbose=False, only=only)
     except Exception as exc:
         print(f"cairn: ledger export failed ({exc})", file=sys.stderr)
 
@@ -93,7 +98,7 @@ Report failures with the same care as results: `dead-end` and `refute` score
 above `advance`, on purpose. A verdict with no reasoning is refused.
 """
 
-server = MCPServer(name="cairn", version="0.1.0", instructions=INSTRUCTIONS)
+server = MCPServer(name="cairn", version=__version__, instructions=INSTRUCTIONS)
 
 
 # ----------------------------------------------------------------- helpers
@@ -110,7 +115,22 @@ def _session_or_fail(sid: str, need_write: bool = True) -> Any:
     return s
 
 
+def _wake_problem(st: Any, p: Any) -> None:
+    """First write against a catalogued problem wakes it: listed becomes worked."""
+    if p["status"] == "catalogued":
+        st.db.execute("UPDATE problems SET status='open', updated_at=? WHERE id=?",
+                      (utcnow(), p["id"]))
+        st.db.commit()
+
+
 def _fail(exc: Exception) -> dict:
+    # Roll back anything a failed tool half-did, so the next commit from an
+    # unrelated call cannot carry a partial write.
+    try:
+        if _store is not None:
+            _store.db.rollback()
+    except Exception:
+        pass
     return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
 
 
@@ -252,6 +272,8 @@ def list_problems(
     limit: Annotated[int, Field(description="Maximum returned.", ge=1, le=200)] = 40,
 ) -> dict:
     try:
+        if state not in ("worked", "catalogued", "all"):
+            raise ValueError("invalid state: worked | catalogued | all")
         st = store()
         rows = st.list_problems()
         total = len(rows)
@@ -460,13 +482,14 @@ def claim_front(
             (s["contributor"], utcnow(), exp, f["id"]),
         )
         st.db.commit()
+        _publish(only=p["slug"])
         return {"ok": True, "front": front, "lease_expires": exp,
                 "reminder": "search_ledger on this subject before you start."}
     except Exception as exc:
         return _fail(exc)
 
 
-@server.tool(title="Release a front", description="Returns a claimed front without concluding anything.")
+@server.tool(title="Release a front", description="Returns a front you claimed, without concluding anything.")
 def release_front(
     session: Annotated[str, Field(description="Session identifier.")],
     problem: Annotated[str, Field(description="Problem slug.")],
@@ -474,14 +497,25 @@ def release_front(
 ) -> dict:
     try:
         st = store()
-        _session_or_fail(session)
+        s = _session_or_fail(session)
         p = st.problem_or_die(problem)
+        f = st.front(p["id"], front)
+        if f is None:
+            raise KeyError(f"unknown front '{front}'")
+        if f["status"] != "claimed":
+            return {"ok": True, "front": front, "state": f["status"],
+                    "note": "nothing to release."}
+        if f["claimed_by"] != s["contributor"]:
+            return {"ok": False,
+                    "error": f"held by {f['claimed_by']} until {f['lease_expires']} — only "
+                             "the holder can release it. An abandoned lease expires by itself."}
         st.db.execute(
             "UPDATE fronts SET status='open', claimed_by=NULL, claimed_at=NULL, lease_expires=NULL "
-            "WHERE problem_id=? AND key=? AND status='claimed'",
-            (p["id"], front),
+            "WHERE id=?",
+            (f["id"],),
         )
         st.db.commit()
+        _publish(only=p["slug"])
         return {"ok": True, "front": front, "state": "open"}
     except Exception as exc:
         return _fail(exc)
@@ -546,10 +580,14 @@ def report_result(
                 raise KeyError(f"unknown front '{front}'")
             fid = f["id"]
 
+        # Tools display shortened hashes, so accept a prefix here — but resolve
+        # it now: what the ledger records must be the full handle or an error.
+        handles = [st.resolve_artifact(a) for a in (artifacts or [])]
+
         eid = st.add_entry(
             p["id"], p["slug"], front_id=fid, verdict=verdict, statut=statut,
             summary=summary, why=why, session_id=session, contributor=s["contributor"],
-            artifacts=artifacts or [],
+            artifacts=handles, uid=uuid.uuid4().hex,
         )
 
         closed = False
@@ -562,7 +600,8 @@ def report_result(
             st.db.commit()
             closed = True
 
-        _publish()
+        _wake_problem(st, p)
+        _publish(only=p["slug"])
         return {
             "ok": True, "entry": eid, "front_closed": closed,
             "note": "Front closed. Say what it unblocks, and open the next one with open_front "
@@ -600,7 +639,8 @@ def open_front(
             return {"ok": False, "error": f"front '{key}' already exists."}
         st.upsert_front(p["id"], p["slug"], key=key, title=title, rationale=rationale,
                         cost=cost, gain=gain, status="open", priority=priority)
-        _publish()
+        _wake_problem(st, p)
+        _publish(only=p["slug"])
         return {"ok": True, "front": key}
     except Exception as exc:
         return _fail(exc)
@@ -609,9 +649,10 @@ def open_front(
 @server.tool(
     title="Open a problem",
     description=(
-        "Registers a problem nobody is tracking yet. Do this before working on it so "
-        "somebody else can join. A problem with no open front is one nobody knows how "
-        "to enter, so open at least one straight after with open_front."
+        "Registers a problem nobody is tracking yet, or upgrades a catalogued stub with "
+        "its precise statement. Do this before working on it so somebody else can join. "
+        "A problem with no open front is one nobody knows how to enter, so open at "
+        "least one straight after with open_front."
     ),
 )
 def open_problem(
@@ -634,7 +675,8 @@ def open_problem(
         _session_or_fail(session)
         if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", slug or ""):
             raise ValueError("invalid slug: lowercase, digits and hyphens, e.g. 'erdos-707'.")
-        if st.problem(slug) is not None:
+        existing = st.problem(slug)
+        if existing is not None and existing["status"] != "catalogued":
             return {"ok": False, "error": f"problem '{slug}' already exists.",
                     "advice": "briefing(problem) to see where it stands."}
         if len((statement or "").strip()) < 60:
@@ -642,12 +684,17 @@ def open_problem(
                 "`statement` too short. It has to stand alone and be unambiguous: explicit "
                 "quantifiers, defined notation. It is all the next reader will have."
             )
+        # A catalogued stub carries only a link and tags; bringing the precise
+        # statement upgrades it in place rather than being refused as a clash.
         st.upsert_problem(slug=slug, title=title, statement=statement, status="open",
-                          one_liner=one_liner or None, source_url=source_url,
-                          honest_estimate=honest_estimate)
-        _publish()
+                          one_liner=one_liner or (existing["one_liner"] if existing else None),
+                          source_url=source_url or (existing["source_url"] if existing else None),
+                          honest_estimate=honest_estimate,
+                          tags=existing["tags"] if existing else None)
+        _publish(only=slug)
         return {
             "ok": True, "problem": slug,
+            "upgraded_from_catalogue": existing is not None,
             "next": "Open at least one front with open_front, or nobody will know where to "
                     "start. Then report_result as you go.",
         }
@@ -705,14 +752,7 @@ def read_artifact(
 ) -> dict:
     try:
         st = store()
-        row = st.artifact_meta(sha256)
-        if row is None:
-            hit = st.db.execute(
-                "SELECT sha256 FROM artifacts WHERE sha256 LIKE ? LIMIT 2", (sha256 + "%",)
-            ).fetchall()
-            if len(hit) != 1:
-                raise KeyError(f"artifact not found, or ambiguous prefix: {sha256}")
-            row = st.artifact_meta(hit[0]["sha256"])
+        row = st.artifact_meta(st.resolve_artifact(sha256))
         meta = {"sha256": row["sha256"], "name": row["filename"], "kind": row["kind"],
                 "bytes": row["size"], "lines": row["lines"]}
         if mode == "meta":
@@ -765,6 +805,10 @@ def server_status() -> dict:
             "ok": True,
             "database": DB_PATH,
             "database_bytes": os.path.getsize(DB_PATH) if os.path.exists(DB_PATH) else 0,
+            "ledger": str(LEDGER),
+            "ledger_note": None if LEDGER.is_dir() else
+                           "created on first write; your contributions are exported there "
+                           "as text for a pull request",
             "problems": len(st.list_problems()),
             "artifacts": {"count": a["count"], "raw_bytes": a["raw_bytes"],
                           "stored_bytes": a["stored_bytes"], "compression": f"x{a['ratio']}"},

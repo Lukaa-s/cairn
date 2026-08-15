@@ -276,6 +276,159 @@ async def run() -> None:
         stt = payload(await c.call_tool("server_status", {}))
         ok("état du serveur cohérent", stt.get("ok") and stt["artifacts"]["count"] >= 1)
 
+        # --- discipline des artefacts : une poignée fausse ne laisse rien derrière
+        from cairn.store import Store as _S
+        n_before = _S(DB).db.execute(
+            "SELECT COUNT(*) FROM entries").fetchone()[0]
+        badh = payload(await c.call_tool("report_result", {
+            "session": sid, "problem": "test-42", "verdict": "advance", "statut": "measured",
+            "summary": "résultat avec une pièce jointe inexistante",
+            "why": "la poignée d'artefact est inventée et l'écriture doit être refusée "
+                   "proprement, sans demi-ligne fantôme dans la table.",
+            "artifacts": ["deadbeefdeadbeef"]}))
+        n_after = _S(DB).db.execute("SELECT COUNT(*) FROM entries").fetchone()[0]
+        ok("poignée d'artefact inconnue refusée", badh.get("ok") is False
+           and "artifact" in badh.get("error", ""))
+        ok("aucune demi-écriture ne subsiste", n_after == n_before, f"{n_before}→{n_after}")
+
+        pfx = payload(await c.call_tool("report_result", {
+            "session": sid, "problem": "test-42", "front": "front-c", "verdict": "advance",
+            "statut": "certified",
+            "summary": "mesure rattachée par un préfixe de hachage",
+            "why": "les outils affichent des hachages raccourcis ; un modèle qui en recopie "
+                   "un doit soit réussir soit échouer bruyamment, jamais joindre le mauvais fichier.",
+            "artifacts": [sha[:12]]}))
+        ok("préfixe de hachage résolu à l'écriture", pfx.get("ok") is True, str(pfx)[:200])
+
+        # --- le bail appartient à qui l'a pris
+        cl2 = payload(await c.call_tool("claim_front", {"session": sid, "problem": "test-42",
+                                                        "front": "front-b"}))
+        ok("second front réservé", cl2.get("ok") is True)
+
+        r2 = payload(await c.call_tool("open_session", {"model": "claude-opus-5",
+                                                        "contributor": "voleur"}))
+        sid2 = r2["session"]
+        ans2 = solve(r2["challenge"]["type"], r2["challenge"]["prompt"])
+        payload(await c.call_tool("prove_capability", {"session": sid2, "answer": ans2}))
+        steal = payload(await c.call_tool("release_front", {"session": sid2,
+                                                            "problem": "test-42",
+                                                            "front": "front-b"}))
+        ok("un tiers ne libère pas le bail d'un autre", steal.get("ok") is False
+           and "holder" in steal.get("error", ""), str(steal)[:200])
+
+        bad_state = payload(await c.call_tool("list_problems", {"state": "n'importe quoi"}))
+        ok("état de filtre invalide refusé", bad_state.get("ok") is False)
+
+        # --- un problème catalogué se réveille à la première écriture
+        _S(DB).upsert_problem(slug="cat-1", title="Un problème catalogué",
+                              statement="", status="catalogued",
+                              one_liner="tags seulement", tags="test-tag",
+                              source_url="https://example.org/cat-1")
+        wake = payload(await c.call_tool("open_front", {
+            "session": sid, "problem": "cat-1", "key": "premier-regard",
+            "title": "Premier regard",
+            "rationale": "Ouvrir une entrée sur un problème catalogué doit le faire passer "
+                         "de listé à travaillé, comme l'importeur le promet."}))
+        ok("écriture acceptée sur un catalogué", wake.get("ok") is True, str(wake)[:200])
+        lp = payload(await c.call_tool("list_problems", {"state": "worked", "query": "cat-1"}))
+        ok("le catalogué réveillé devient travaillé",
+           any(x["slug"] == "cat-1" for x in lp.get("problems", [])))
+
+        _S(DB).upsert_problem(slug="cat-2", title="Un second catalogué",
+                              statement="", status="catalogued", tags="garde-moi",
+                              source_url="https://example.org/cat-2")
+        upg = payload(await c.call_tool("open_problem", {
+            "session": sid, "slug": "cat-2", "title": "Un second catalogué, énoncé apporté",
+            "statement": "Pour tout n suffisamment grand, l'énoncé précis tient avec "
+                         "quantificateurs explicites et notation définie."}))
+        ok("un stub catalogué s'upgrade avec son énoncé",
+           upg.get("ok") is True and upg.get("upgraded_from_catalogue") is True, str(upg)[:200])
+        row = _S(DB).problem("cat-2")
+        ok("l'upgrade préserve tags et source",
+           row["tags"] == "garde-moi" and row["source_url"] == "https://example.org/cat-2")
+
+    print("\n▸ Le registre texte : baux, identités, allers-retours")
+    from cairn.store import Store as _S
+    from cairn.sync import default_paths, import_
+
+    ledger = Path(os.environ["CAIRN_LEDGER"])
+    pj = json.loads((ledger / "problems" / "test-42.json").read_text(encoding="utf-8"))
+    fb = next(f for f in pj["fronts"] if f["key"] == "front-b")
+    ok("le bail voyage dans le registre texte",
+       fb.get("claimed_by") == "testeur" and bool(fb.get("lease_expires")), str(fb)[:200])
+    unclaimed = [f for f in pj["fronts"] if f["key"] != "front-b"]
+    ok("les fronts libres ne portent pas de champs de bail",
+       all("claimed_by" not in f for f in unclaimed))
+
+    lines = [json.loads(x) for x in
+             (ledger / "entries" / "test-42.jsonl").read_text(encoding="utf-8").splitlines()]
+    with_uid = [x for x in lines if x.get("uid")]
+    ok("les entrées neuves portent un uid", len(with_uid) >= 3, f"{len(with_uid)}")
+    ok("le doublon forcé garde une identité propre",
+       len({x["uid"] for x in with_uid}) == len(with_uid))
+
+    db2 = _TMP / "reimport.db"
+    import_(ledger, db2, verbose=False)
+    st2 = _S(db2)
+    n1 = _S(DB).db.execute("SELECT COUNT(*) FROM entries WHERE problem_id="
+                           "(SELECT id FROM problems WHERE slug='test-42')").fetchone()[0]
+    n2 = st2.db.execute("SELECT COUNT(*) FROM entries WHERE problem_id="
+                        "(SELECT id FROM problems WHERE slug='test-42')").fetchone()[0]
+    ok("l'aller-retour préserve chaque entrée, doublon forcé compris", n1 == n2, f"{n1}≠{n2}")
+    fb2 = st2.db.execute("SELECT * FROM fronts WHERE key='front-b'").fetchone()
+    ok("le bail survit à l'aller-retour", fb2["claimed_by"] == "testeur"
+       and fb2["status"] == "claimed")
+    n2b = st2.db.execute("SELECT COUNT(*) FROM entries").fetchone()[0]
+    import_(ledger, db2, verbose=False)
+    n2c = st2.db.execute("SELECT COUNT(*) FROM entries").fetchone()[0]
+    ok("réimporter est idempotent", n2b == n2c, f"{n2b}→{n2c}")
+    ok("un problème sans entrée n'a pas de fichier d'entrées",
+       not (ledger / "entries" / "cat-2.jsonl").exists())
+
+    print("\n▸ Chemins d'installation : dépôt contre roue installée")
+    xc, xd = _TMP / "xdg-cache", _TMP / "xdg-data"
+    os.environ["XDG_CACHE_HOME"], os.environ["XDG_DATA_HOME"] = str(xc), str(xd)
+    fake_pkg = _TMP / "site-packages" / "cairn"
+    (fake_pkg / "_ledger").mkdir(parents=True, exist_ok=True)
+    db_w, led_w, seed_w = default_paths(fake_pkg)
+    ok("mode roue : cache et données sous XDG, graine embarquée détectée",
+       db_w == xc / "cairn" / "cairn.db" and led_w == xd / "cairn" / "ledger"
+       and seed_w == fake_pkg / "_ledger", f"{db_w} {led_w} {seed_w}")
+    repo = _TMP / "repo"
+    (repo / "ledger").mkdir(parents=True, exist_ok=True)
+    (repo / "cairn").mkdir(exist_ok=True)
+    db_r, led_r, seed_r = default_paths(repo / "cairn")
+    ok("mode dépôt : tout à la racine, pas de graine",
+       db_r == repo / "cairn.db" and led_r == repo / "ledger" and seed_r is None)
+
+    print("\n▸ Le site se construit depuis la même base")
+    from cairn.web import build, verified_prefix
+    vp = _S(_TMP / "vp.db")
+    vpid = vp.upsert_problem(slug="vp", title="t", statement="un énoncé de test "
+                             "suffisamment long pour la validation du schéma.")
+    for n, s_ in ((10, "closed"), (11, "closed"), (12, "partial"), (14, "closed")):
+        vp.db.execute("INSERT INTO strata(problem_id,label,status) VALUES(?,?,?)",
+                      (vpid, f"n={n}", s_))
+    vp.db.commit()
+    ok("la borne vérifiée est calculée, jamais saisie", verified_prefix(vp, "vp") == 11,
+       str(verified_prefix(vp, "vp")))
+    vp.close()
+
+    _S(DB).upsert_problem(slug="cat-3", title="Encore catalogué", statement="",
+                          status="catalogued", one_liner="intact",
+                          source_url="https://example.org/cat-3")
+    site = _TMP / "docs"
+    build(DB, site, _TMP / "absent.json", None)
+    idx = (site / "index.html").read_text(encoding="utf-8")
+    ok("index construit avec favicon et lien d'évitement",
+       "data:image/svg+xml" in idx and "Skip to content" in idx)
+    ok("la page d'un catalogué intact existe et invite",
+       (site / "cat-3.html").exists()
+       and "untouched" in (site / "cat-3.html").read_text(encoding="utf-8"))
+    ok("le plan du site couvre chaque page",
+       (site / "sitemap.xml").read_text().count("<loc>")
+       == len(list(site.glob("*.html"))))
+
     print("\n▸ Protocole 2026-07-28 : la sonde est interdite par la spec")
     async with make_client(srv, "claude-opus-5-20260101", mode="auto") as c:
         r = payload(await c.call_tool("open_session", {"model": "claude-opus-5",

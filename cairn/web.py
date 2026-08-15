@@ -20,10 +20,19 @@ import argparse
 import base64
 import html
 import json
+import re
 from pathlib import Path
 
 from .render import briefing, clip
 from .store import Store
+
+SITE_URL = "https://lukaa-s.github.io/cairn/"
+
+# The cairn mark, inline: no request, no file, works at 16 px. Same accent as
+# --accent (oklch 79% 0.14 72 -> #f1aa47).
+FAVICON = ("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' "
+           "viewBox='0 0 64 64'%3E%3Cpolygon points='32,6 60,58 4,58' "
+           "fill='%23f1aa47'/%3E%3C/svg%3E")
 
 # LM* are the Latin Modern faces (see tools/build_fonts.py); ar* is Archivo, the
 # modern half, used only for interface chrome so the two never fight for a role.
@@ -100,7 +109,7 @@ CSS = r"""
   --bg-3:    oklch(23% 0.013 250);
   --ink:     oklch(95% 0.004 250);
   --muted:   oklch(69% 0.011 250);
-  --dim:     oklch(56% 0.011 250);
+  --dim:     oklch(60% 0.011 250); /* 4.7:1 on --bg-2: the small-text floor, computed */
   --rule:    oklch(30% 0.011 250);
   --accent:  oklch(79% 0.140 72);
   --accent-d:oklch(62% 0.125 72);
@@ -133,6 +142,9 @@ body{
 a{color:inherit}
 :focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:2px}
 .wrap{max-width:var(--page); margin:0 auto; padding-inline:var(--gut)}
+.skip{position:absolute; left:-999rem; font-family:var(--ui)}
+.skip:focus{left:1rem; top:1rem; z-index:100; background:var(--accent);
+            color:var(--on-accent); padding:.6em 1em; border-radius:2px; text-decoration:none}
 
 /* chrome is Archivo; meaning is Latin Modern */
 .ui{font-family:var(--ui)}
@@ -513,13 +525,15 @@ document.querySelectorAll('[data-copy]').forEach(function(b){
 """
 
 
-def shell(title: str, body: str, *, page: str, desc: str) -> str:
+def shell(title: str, body: str, *, page: str, desc: str, path: str = "index.html") -> str:
     nav = [("index.html", "Overview", "index", False),
            ("problems.html", "Problems", "problems", False),
            ("docs.html", "Docs", "docs", True)]
     links = "".join(
         f'<a href="{h}"{" aria-current=\"page\"" if k == page else ""}'
         f'{" class=\"hide-s\"" if s else ""}>{t}</a>' for h, t, k, s in nav)
+    url = SITE_URL + ("" if path == "index.html" else path)
+    body = body.replace("<main>", '<main id="main">', 1)
     return f"""<!doctype html>
 <html lang="en">
 <meta charset="utf-8">
@@ -527,9 +541,18 @@ def shell(title: str, body: str, *, page: str, desc: str) -> str:
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="{e(desc)}">
 <meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#06090d">
+<meta property="og:title" content="{e(title)}">
+<meta property="og:description" content="{e(desc)}">
+<meta property="og:type" content="website">
+<meta property="og:url" content="{url}">
+<meta property="og:site_name" content="Cairn">
+<link rel="canonical" href="{url}">
+<link rel="icon" href="{FAVICON}">
 <link rel="preload" href="fonts/lmr.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="cairn.css">
 {CONTRACT}
+<a class="skip" href="#main">Skip to content</a>
 <header class="nav">
   <div class="wrap">
     <a class="brand" href="index.html"><i></i>CAIRN</a>
@@ -543,6 +566,7 @@ def shell(title: str, body: str, *, page: str, desc: str) -> str:
     from the ledger database when the page is built.</span>
   <span><a href="https://github.com/Lukaa-s/cairn">Source</a> ·
         <a href="docs.html">Docs</a> ·
+        <a href="https://github.com/Lukaa-s/cairn/blob/main/LICENSE">MIT code · CC BY 4.0 ledger</a> ·
         <a href="fonts/LICENSE.md">Type</a></span>
 </div></footer>
 <script>{JS}</script>
@@ -550,6 +574,29 @@ def shell(title: str, body: str, *, page: str, desc: str) -> str:
 
 
 # ───────────────────────────────────────────────────────────────── stats
+
+def verified_prefix(st: Store, slug: str) -> int | None:
+    """The largest n with every machine stratum up to it closed.
+
+    The hero card states a verified range, and that number must be computed from
+    the strata rather than typed: the sceptical reader this site exists for is
+    exactly the one who will compare the claim against the ledger.
+    """
+    p = st.problem(slug)
+    if p is None:
+        return None
+    status = {}
+    for r in st.db.execute("SELECT label,status FROM strata WHERE problem_id=?", (p["id"],)):
+        m = re.fullmatch(r"n=(\d+)", r["label"])
+        if m:
+            status[int(m.group(1))] = r["status"]
+    v = None
+    for n in sorted(status):
+        if status[n] != "closed":
+            break
+        v = n
+    return v
+
 
 def live_stats(st: Store) -> dict:
     one = lambda q: st.db.execute(q).fetchone()[0]  # noqa: E731
@@ -591,6 +638,9 @@ def page_index(st: Store) -> str:
     s = live_stats(st)
     probs = st.list_problems()
     board = st.leaderboard(6)
+    v = verified_prefix(st, "erdos-982")
+    verified_dd = (f"<i>n</i> &#8804; {v}, no counterexample" if v
+                   else "see the machine strata")
 
     prob_rows = "".join(
         f'<div class="row p"><div>'
@@ -635,7 +685,7 @@ def page_index(st: Store) -> str:
       <p class="conj"><span class="who">Conjecture</span> (Erdős, 1946).
          &#160; <i>M</i>(<i>P</i>) &#8805; &#8970;<i>n</i>/2&#8971;</p>
       <dl class="facts">
-        <dt>verified</dt><dd><i>n</i> &#8804; 13, no counterexample &#183; {num(s["cpu"])} solver-seconds</dd>
+        <dt>verified</dt><dd>{verified_dd} &#183; {num(s["cpu"])} solver-seconds</dd>
         <dt>best known</dt><dd>(13/36 + &#949;)<i>n</i> &#8776; 0.361 <i>n</i>, against 0.5 <i>n</i></dd>
         <dt>dead ends</dt><dd>{s["dead"]} recorded, each with the reason it failed</dd>
         <dt>open now</dt><dd>{s["fronts"]} fronts anyone can take</dd>
@@ -760,7 +810,9 @@ git clone https://github.com/Lukaa-s/cairn &amp;&amp; cd cairn
 cp -r skills/cairn ~/.claude/skills/cairn</pre>
       <p class="sub" style="margin:var(--s4) 0 0;font-size:.92rem">The companion skill carries
         what tool descriptions cannot: when to write, and how to write a reason worth
-        reading. <a href="docs.html" style="color:var(--accent)">Docs</a>.</p>
+        reading. From the one-liner, your writes are exported to
+        <span class="mono">~/.local/share/cairn/ledger/</span>, ready for a pull request.
+        <a href="docs.html" style="color:var(--accent)">Docs</a>.</p>
     </div>
   </div>
 </div></section>
@@ -774,7 +826,7 @@ cp -r skills/cairn ~/.claude/skills/cairn</pre>
                 .replace("{listed}", str(s["problems"]))
                 .replace("{config}", e(CONFIG)))
     return shell("Cairn — the ledger your agent reads before it starts", body,
-                 page="index",
+                 page="index", path="index.html",
                  desc="An MCP server holding a shared ledger of attempts on open "
                       "mathematical problems: what was tried, what it cost, why it failed.")
 
@@ -810,13 +862,11 @@ def page_problems(st: Store) -> str:
         tags = e(p["tags"] or "")
         num = p["slug"].rsplit("-", 1)[-1]
         label = f"#{num}" if p["slug"].startswith("erdos-") and num.isdigit() else e(p["slug"])
-        href = f'{e(p["slug"])}.html' if worked else e(p["source_url"] or "#")
-        ext = "" if worked else ' target="_blank" rel="noopener"'
         meta = (f'<span class="n">{p["n_theorems"]}</span> results '
                 f'<span class="n">{p["open_fronts"]}</span> fronts '
                 f'<span class="n">{p["n_entries"]}</span> entries'
                 if worked else e(clip(p["one_liner"], 110)))
-        return (f'<a class="prow{" worked" if worked else ""}" href="{href}"{ext} '
+        return (f'<a class="prow{" worked" if worked else ""}" href="{e(p["slug"])}.html" '
                 f'data-t="{tags}" data-s="{e(p["status"])}" '
                 f'data-q="{e((p["slug"] + " " + (p["title"] or "") + " " + (p["one_liner"] or "") + " " + (p["tags"] or "")).lower())}">'
                 f'<span class="id">{label}</span>'
@@ -867,7 +917,7 @@ def page_problems(st: Store) -> str:
   </div>
 </div></section></main>
 """
-    return shell("Problems — Cairn", body, page="problems",
+    return shell("Problems — Cairn", body, page="problems", path="problems.html",
                  desc=f"{len(probs)} open mathematical problems tracked in the Cairn ledger.")
 
 
@@ -1001,22 +1051,24 @@ def page_problem(st: Store, slug: str) -> str:
 </main>
 """
     return shell(f"{p['title']} — Cairn", body, page="problems",
-                 desc=clip(p["one_liner"], 180))
+                 path=f"{p['slug']}.html", desc=clip(p["one_liner"], 180))
 
 
 def page_untouched(st: Store, p) -> str:
     """A problem nobody has worked on yet. The page's job is to make that an opening."""
-    num = p["slug"].replace("erdos-", "")
+    src = p["source_url"]
+    where = (f'The statement lives at <a href="{e(src)}" style="color:var(--accent)">{e(src)}</a>, '
+             f"where it is maintained. Cairn does not copy it: what belongs here is what gets "
+             f"tried against it." if src else
+             "No statement is recorded here yet: whoever starts brings it, with "
+             "explicit quantifiers, through <span class=\"mono\">open_problem</span>.")
     body = f"""
 <main><section><div class="wrap">
   <div class="art rise">
     <span class="tag">catalogued &#183; untouched</span>
     <h1 style="font-size:clamp(1.9rem,4vw,3rem);margin-top:var(--s4)">{e(p["title"])}</h1>
     <p class="stmt">{e(p["one_liner"] or "")}</p>
-    <p class="sub">The statement lives at
-      <a href="{e(p["source_url"])}" style="color:var(--accent)">{e(p["source_url"])}</a>,
-      where it is maintained. Cairn does not copy it: what belongs here is what gets
-      tried against it.</p>
+    <p class="sub">{where}</p>
   </div>
 
   <div class="empty" style="max-width:44rem;margin-top:var(--s6);text-align:left">
@@ -1045,11 +1097,12 @@ open_front(
 
   <p class="sub" style="margin-top:var(--s6)">
     <a class="btn sec" href="problems.html">All problems</a>
-    <a class="btn sec" href="https://www.erdosproblems.com/{e(num)}">Read the statement</a>
+    {f'<a class="btn sec" href="{e(src)}">Read the statement</a>' if src else ""}
   </p>
 </div></section></main>
 """
     return shell(f"{p['title']} — Cairn", body, page="problems",
+                 path=f"{p['slug']}.html",
                  desc=f"{p['title']}: catalogued in Cairn, no attempts filed yet.")
 
 
@@ -1147,8 +1200,8 @@ cd cairn &amp;&amp; python3 -m venv .venv
   </div>
 </div></section></main>
 """
-    return shell("Docs — Cairn", body, page="docs",
-                 desc="How to run the Cairn MCP server, its five rules, and its fifteen tools.")
+    return shell("Docs — Cairn", body, page="docs", path="docs.html",
+                 desc="How to run the Cairn MCP server, its five rules, and its sixteen tools.")
 
 
 def build(db: Path, out: Path, fonts_path: Path, extra_fonts: Path | None) -> None:
@@ -1163,12 +1216,26 @@ def build(db: Path, out: Path, fonts_path: Path, extra_fonts: Path | None) -> No
     (out / "index.html").write_text(page_index(st), encoding="utf-8")
     (out / "problems.html").write_text(page_problems(st), encoding="utf-8")
     (out / "docs.html").write_text(page_docs(st), encoding="utf-8")
-    worked = [p for p in st.list_problems() if p["status"] in ("open", "solved")]
+    probs = st.list_problems()
+    worked = [p for p in probs if p["status"] in ("open", "solved")]
+    untouched = [p for p in probs if p["status"] == "catalogued"]
     for p in worked:
         (out / f"{p['slug']}.html").write_text(page_problem(st, p["slug"]), encoding="utf-8")
-    print(f"  {len(worked)} problem pages (catalogued ones link to the source)")
-    for f in sorted(out.glob("*.*")):
-        print(f"  {f.name:24s} {f.stat().st_size/1024:7.1f} Kio")
+    for p in untouched:
+        (out / f"{p['slug']}.html").write_text(page_untouched(st, p), encoding="utf-8")
+
+    pages = ["index.html", "problems.html", "docs.html"] + \
+            [f"{p['slug']}.html" for p in worked + untouched]
+    (out / "sitemap.xml").write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        + "\n".join(f"  <url><loc>{SITE_URL}{'' if pg == 'index.html' else pg}</loc></url>"
+                    for pg in pages)
+        + "\n</urlset>\n", encoding="utf-8")
+
+    total = sum(f.stat().st_size for f in out.rglob("*") if f.is_file())
+    print(f"  {len(worked)} worked + {len(untouched)} catalogued problem pages")
+    print(f"  {len(pages)} pages · {total/1024:.0f} Kio total (fonts included)")
     st.close()
 
 
