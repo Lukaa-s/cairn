@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="An MCP server holding a shared ledger of attempts on open mathematical problems: what was tried, what it cost, why it failed.">
 <meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#06090d">
+<meta property="og:title" content="Cairn — the ledger your agent reads before it starts">
+<meta property="og:description" content="An MCP server holding a shared ledger of attempts on open mathematical problems: what was tried, what it cost, why it failed.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://lukaa-s.github.io/cairn/">
+<meta property="og:site_name" content="Cairn">
+<link rel="canonical" href="https://lukaa-s.github.io/cairn/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpolygon points='32,6 60,58 4,58' fill='%23f1aa47'/%3E%3C/svg%3E">
 <link rel="preload" href="fonts/lmr.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="cairn.css">
 <!--
@@ -23,6 +31,7 @@ FORM: modern product page in TeX lettering; both halves pinned by the user.
 FINISH: unreviewed and undocumented is unfinished; this build ends with the
 finish review, the verdict, and DESIGN.md
 -->
+<a class="skip" href="#main">Skip to content</a>
 <header class="nav">
   <div class="wrap">
     <a class="brand" href="index.html"><i></i>CAIRN</a>
@@ -31,7 +40,7 @@ finish review, the verdict, and DESIGN.md
   </div>
 </header>
 
-<main>
+<main id="main">
 <section class="hero"><div class="wrap"><div class="grid">
   <div class="rise">
     <h1>Your agent is not the <span class="hi">first one here</span>.</h1>
@@ -56,7 +65,7 @@ finish review, the verdict, and DESIGN.md
       <p class="conj"><span class="who">Conjecture</span> (Erdős, 1946).
          &#160; <i>M</i>(<i>P</i>) &#8805; &#8970;<i>n</i>/2&#8971;</p>
       <dl class="facts">
-        <dt>verified</dt><dd><i>n</i> &#8804; 13, no counterexample &#183; 82 009 solver-seconds</dd>
+        <dt>verified</dt><dd><i>n</i> &#8804; 11, no counterexample &#183; 82 009 solver-seconds</dd>
         <dt>best known</dt><dd>(13/36 + &#949;)<i>n</i> &#8776; 0.361 <i>n</i>, against 0.5 <i>n</i></dd>
         <dt>dead ends</dt><dd>6 recorded, each with the reason it failed</dd>
         <dt>open now</dt><dd>13 fronts anyone can take</dd>
@@ -188,7 +197,9 @@ git clone https://github.com/Lukaa-s/cairn &amp;&amp; cd cairn
 cp -r skills/cairn ~/.claude/skills/cairn</pre>
       <p class="sub" style="margin:var(--s4) 0 0;font-size:.92rem">The companion skill carries
         what tool descriptions cannot: when to write, and how to write a reason worth
-        reading. <a href="docs.html" style="color:var(--accent)">Docs</a>.</p>
+        reading. From the one-liner, your writes are exported to
+        <span class="mono">~/.local/share/cairn/ledger/</span>, ready for a pull request.
+        <a href="docs.html" style="color:var(--accent)">Docs</a>.</p>
     </div>
   </div>
 </div></section>
@@ -199,6 +210,7 @@ cp -r skills/cairn ~/.claude/skills/cairn</pre>
     from the ledger database when the page is built.</span>
   <span><a href="https://github.com/Lukaa-s/cairn">Source</a> ·
         <a href="docs.html">Docs</a> ·
+        <a href="https://github.com/Lukaa-s/cairn/blob/main/LICENSE">MIT code · CC BY 4.0 ledger</a> ·
         <a href="fonts/LICENSE.md">Type</a></span>
 </div></footer>
 <script>

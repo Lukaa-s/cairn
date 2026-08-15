@@ -5,7 +5,7 @@
   --bg-3:    oklch(23% 0.013 250);
   --ink:     oklch(95% 0.004 250);
   --muted:   oklch(69% 0.011 250);
-  --dim:     oklch(56% 0.011 250);
+  --dim:     oklch(60% 0.011 250); /* 4.7:1 on --bg-2: the small-text floor, computed */
   --rule:    oklch(30% 0.011 250);
   --accent:  oklch(79% 0.140 72);
   --accent-d:oklch(62% 0.125 72);
@@ -38,6 +38,9 @@ body{
 a{color:inherit}
 :focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:2px}
 .wrap{max-width:var(--page); margin:0 auto; padding-inline:var(--gut)}
+.skip{position:absolute; left:-999rem; font-family:var(--ui)}
+.skip:focus{left:1rem; top:1rem; z-index:100; background:var(--accent);
+            color:var(--on-accent); padding:.6em 1em; border-radius:2px; text-decoration:none}
 
 /* chrome is Archivo; meaning is Latin Modern */
 .ui{font-family:var(--ui)}
